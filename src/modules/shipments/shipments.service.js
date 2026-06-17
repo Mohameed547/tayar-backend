@@ -103,11 +103,8 @@ const getShipmentsByCustomer = async (
     if (statusFilter) query.status = { $in: statusFilter };
 
     const [shipments, total] = await Promise.all([
-        Shipment.find(query)
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(take)
-            .populate("captain", "name phone avatar rating reviewsCount"),
+        Shipment.find(query).sort({ createdAt: -1 }).skip(skip).limit(take),
+        // .populate("captain", "name phone avatar rating reviewsCount"),
         Shipment.countDocuments(query),
     ]);
 
