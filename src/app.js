@@ -7,8 +7,14 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use("/", router);
 
-app.use("/api", router);
+app.use((req, res) => {
+    res.status(404).json({
+        status: "fail",
+        message: `Route ${req.originalUrl} not found`,
+    });
+});
 
 app.use(errorHandler);
 
