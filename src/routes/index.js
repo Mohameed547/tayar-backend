@@ -1,6 +1,10 @@
-import express from 'express';
-import authRoutes from '../modules/auth/auth.routes.js';
 import { Router } from "express";
+// import authRoutes from "../modules/auth/auth.routes.js";
+import profileRoutes from "../modules/profile/profile.routes.js";
+import reviewsRoutes from "../modules/reviews/reviews.routes.js";
+import offersRoutes from "../modules/offers/offers.routes.js";
+import authRoutes from '../modules/auth/auth.routes.js';
+
 import shipmentRoutes from "../modules/shipments/shipments.routes.js";
 import trackingRoutes from "../modules/tracking/tracking.routes.js";
 import notificationRoutes from "../modules/notifications/notifications.routes.js";
@@ -8,7 +12,17 @@ import userRoutes from "../modules/users/users.routes.js";
 import supportRoutes from "../modules/support/support.routes.js";
 import walletRoutes from "../modules/wallet/wallet.routes.js";
 
-const router = express.Router();
+
+const router = Router();
+
+// router.use("/auth", authRoutes);
+router.use("/users", profileRoutes);
+router.use("/reviews", reviewsRoutes);
+router.use("/offers", offersRoutes);
+
+
+
+
 
 router.use('/auth', authRoutes);
 router.use("/shipments", shipmentRoutes);
