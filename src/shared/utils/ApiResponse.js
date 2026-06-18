@@ -1,18 +1,11 @@
 class ApiResponse {
-    static success(data, message = "Success") {
-        return {
-            status: "success",
+    static send(res, statusCode, message, data = null) {
+        const response = {
+            success: statusCode >= 200 && statusCode < 300,
             message,
-            data,
+            ...(data && { data })
         };
-    }
-
-    static error(message = "Something went wrong") {
-        return {
-            status: "error",
-            message,
-            data: null,
-        };
+        return res.status(statusCode).json(response);
     }
 }
 

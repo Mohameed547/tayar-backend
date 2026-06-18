@@ -1,8 +1,8 @@
-import { Router } from "express";
-import shipmentRoutes from "../modules/shipments/shipments.routes.js";
+import express from 'express';
+import authRoutes from '../modules/auth/auth.routes.js';
 
-const router = Router();
+const router = express.Router();
 
-router.use("/shipments", shipmentRoutes);
+router.use('/auth', authRoutes);
 
 export default router;

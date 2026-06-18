@@ -1,12 +1,15 @@
-import ApiError from "../utils/ApiError.js";
+import ApiError from '../utils/ApiError.js';
 
-export const validate = (schema) => (req, res, next) => {
-    const { error } = schema.validate(req.body, { abortEarly: false });
+const validate = (schema) => (req, res, next) => {
+    const { error, value } = schema.validate(req.body, { abortEarly: false, stripUnknown: true });
 
     if (error) {
-        const messages = error.details.map((d) => d.message).join(", ");
-        return next(new ApiError(422, messages));
+        const errorMessage = error.details.map((details) => details.message).join(', ');
+        return next(ApiError.badRequest(errorMessage));
     }
 
-    next();
+    req.body = value;
+    return next();
 };
+
+export default validate;

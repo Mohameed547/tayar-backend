@@ -1,16 +1,16 @@
-import ApiError from "../utils/ApiError.js";
+import logger from './logger.js';
 
-export const errorHandler = (err, req, res, next) => {
-    if (err instanceof ApiError) {
-        return res.status(err.statusCode).json({
-            status: err.status,
-            message: err.message,
-        });
-    }
+const errorHandler = (err, req, res, next) => {
+    logger.error(err.message);
 
-    console.error(err);
-    return res.status(500).json({
-        status: "error",
-        message: "Internal server error",
+    const statusCode = err.statusCode || 500;
+    const message = err.message || 'Internal Server Error';
+
+    res.status(statusCode).json({
+        success: false,
+        message: message,
+        ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
     });
 };
+
+export default errorHandler;
