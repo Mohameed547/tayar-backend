@@ -1,1 +1,18 @@
-// TODO: src/modules/offers/offers.routes.js — لسه فاضي، هنملاه مع بعض
+import { Router } from "express";
+import * as Y from "./offers.controller.js";
+import authenticate from "../../shared/middleware/authenticate.js";
+import { validate } from "../../shared/middleware/validate.js";
+import { createOfferSchema } from "./offers.validation.js";
+
+const router = Router();
+
+router.get("/shipment/:shipmentId", authenticate, Y.getShipmentOffers);
+router.post(
+  "/create",
+  authenticate,
+  validate(createOfferSchema),
+  Y.createOffer,
+);
+router.patch("/:offerId/accept", authenticate, Y.acceptOffer);
+
+export default router;
