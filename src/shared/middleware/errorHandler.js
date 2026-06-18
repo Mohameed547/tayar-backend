@@ -1,3 +1,4 @@
+import logger from './logger.js';
 
 export const errorHandler = (err, req, res, next) => {
     // Mongoose validation errors
@@ -28,3 +29,5 @@ export const errorHandler = (err, req, res, next) => {
         message: err.isOperational ? err.message : "Something went wrong on our end",
     });
 };
+
+export default errorHandler;

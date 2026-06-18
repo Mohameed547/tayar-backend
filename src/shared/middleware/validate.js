@@ -1,4 +1,4 @@
-import ApiError from "../utils/ApiError.js";
+import ApiError from '../utils/ApiError.js';
 
 /**
  * Generic Joi validation middleware.
@@ -23,3 +23,5 @@ export const validate = (schema, source = "body") => {
         return next();
     };
 };
+
+export default validate;
