@@ -1,9 +1,5 @@
 import { Schema, model } from "mongoose";
 
-// Mirrors the kind of statuses shipments.service.js already deals with
-// (SHIPMENT_STATUS.PENDING_OFFERS, CAPTAIN_ASSIGNMENT, etc.) plus the
-// physical-movement statuses this module owns. If shared/constants/shipmentStatus.js
-// already defines these, swap this local list for that import instead.
 export const TRACKING_STATUS = {
     ASSIGNED: "assigned",
     PICKED_UP: "picked_up",
@@ -30,9 +26,8 @@ const trackingSchema = new Schema(
             enum: Object.values(TRACKING_STATUS),
             default: TRACKING_STATUS.ASSIGNED,
         },
-        // [lng, lat] to match pickupCoords/deliveryCoords convention used in shipments.service.js
         currentLocation: {
-            coords: { type: [Number] }, // [lng, lat]
+            coords: { type: [Number] },
             updatedAt: { type: Date },
         },
         milestones: { type: [milestoneSchema], default: [] },

@@ -1,7 +1,6 @@
 import usersService from "./users.service.js";
 import ApiResponse from "../../shared/utils/ApiResponse.js";
 
-// GET /api/users/me
 export const getMe = async (req, res, next) => {
     try {
         const user = await usersService.getProfile(req.user._id);
@@ -11,7 +10,6 @@ export const getMe = async (req, res, next) => {
     }
 };
 
-// PATCH /api/users/me
 export const updateMe = async (req, res, next) => {
     try {
         const user = await usersService.updateProfile(req.user._id, req.body);
@@ -21,7 +19,6 @@ export const updateMe = async (req, res, next) => {
     }
 };
 
-// POST /api/users/push-token
 export const addPushToken = async (req, res, next) => {
     try {
         await usersService.registerPushToken(req.user._id, req.body.token);
@@ -31,7 +28,6 @@ export const addPushToken = async (req, res, next) => {
     }
 };
 
-// DELETE /api/users/push-token
 export const removePushToken = async (req, res, next) => {
     try {
         await usersService.removePushToken(req.user._id, req.body.token);

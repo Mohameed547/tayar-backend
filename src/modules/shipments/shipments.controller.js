@@ -2,7 +2,6 @@ import shipmentService from "./shipments.service.js";
 import ApiResponse from "../../shared/utils/ApiResponse.js";
 import ApiError from "../../shared/utils/ApiError.js";
 
-// POST /api/shipments
 export const createShipment = async (req, res, next) => {
     try {
         const customerId = req.user._id;
@@ -21,7 +20,6 @@ export const createShipment = async (req, res, next) => {
     }
 };
 
-// GET /api/shipments  (my shipments - customer)
 export const getMyShipments = async (req, res, next) => {
     try {
         const customerId = req.user._id;
@@ -41,7 +39,6 @@ export const getMyShipments = async (req, res, next) => {
     }
 };
 
-// GET /api/shipments/:id
 export const getShipmentById = async (req, res, next) => {
     try {
         const { id } = req.params;
@@ -57,7 +54,6 @@ export const getShipmentById = async (req, res, next) => {
     }
 };
 
-// PATCH /api/shipments/:id/cancel
 export const cancelShipment = async (req, res, next) => {
     try {
         const { id } = req.params;
@@ -73,7 +69,6 @@ export const cancelShipment = async (req, res, next) => {
     }
 };
 
-// GET /api/admin/shipments
 export const getAllShipments = async (req, res, next) => {
     try {
         const { status, page, limit } = req.query;

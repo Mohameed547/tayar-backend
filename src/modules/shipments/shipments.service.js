@@ -4,7 +4,6 @@ import { getPagination } from "../../shared/utils/pagination.js";
 import { SHIPMENT_STATUS } from "../../shared/constants/shipmentStatus.js";
 
 const geocodeAddress = async (address) => {
-    // Nominatim - OpenStreetMap (مجاني بدون API key)
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`;
 
     const res = await fetch(url, {
@@ -47,8 +46,6 @@ const calcEstimatedPrice = (distanceKm, weight, deliverySpeed) => {
         estimatedPriceMax: Math.round(price * 1.1),
     };
 };
-
-// ── Service ───────────────────────────────────────────────────
 
 const createShipment = async (customerId, body) => {
     const {
@@ -104,7 +101,6 @@ const getShipmentsByCustomer = async (
 
     const [shipments, total] = await Promise.all([
         Shipment.find(query).sort({ createdAt: -1 }).skip(skip).limit(take),
-        // .populate("captain", "name phone avatar rating reviewsCount"),
         Shipment.countDocuments(query),
     ]);
 

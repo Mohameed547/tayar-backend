@@ -1,5 +1,3 @@
-// src/modules/wallet/wallet.validation.js
-
 import Joi from "joi";
 
 export const topupSchema = Joi.object({

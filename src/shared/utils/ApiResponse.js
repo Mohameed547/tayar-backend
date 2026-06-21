@@ -11,7 +11,7 @@ class ApiResponse {
         const response = {
             success: statusCode >= 200 && statusCode < 300,
             message,
-            ...(data && { data })
+            ...(data !== null && { data })
         };
         return res.status(statusCode).json(response);
     }

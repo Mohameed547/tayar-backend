@@ -31,11 +31,6 @@ const removePushToken = async (userId, token) => {
     await User.updateOne({ _id: userId }, { $pull: { pushTokens: token } });
 };
 
-/**
- * Shared helper — Tracking/Notifications/etc import this instead of
- * querying the User collection directly, so "what role does this user
- * have" stays in one place.
- */
 const getUserRole = async (userId) => {
     const user = await User.findById(userId).select("role");
     if (!user) throw new ApiError(404, "User not found");

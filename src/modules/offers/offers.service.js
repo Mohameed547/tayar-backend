@@ -1,5 +1,7 @@
 import Offer from "../../database/models/Offer.model.js";
 import Shipment from "../../database/models/Shipment.model.js";
+import Driver from "../../database/models/Driver.js";
+import Office from "../../database/models/Office.js";
 import ApiError from "../../shared/utils/ApiError.js";
 import { SHIPMENT_STATUS } from "../../shared/constants/shipmentStatus.js";
 import trackingService from "../tracking/tracking.service.js";
@@ -25,9 +27,26 @@ const getShipmentOffers = async (userId, shipmentId) => {
   return result;
 };
 
-const createOffer = async (offererId, offererType, offerData) => {
+const resolveOfferer = async (userId, role) => {
+  if (role === "driver") {
+    const driver = await Driver.findOne({ user: userId });
+    if (!driver) throw new ApiError(404, "Driver profile not found");
+    return { offererType: "Driver", offererId: driver._id };
+  }
+
+  if (role === "office") {
+    const office = await Office.findOne({ user: userId });
+    if (!office) throw new ApiError(404, "Office profile not found");
+    return { offererType: "Office", offererId: office._id };
+  }
+
+  throw new ApiError(403, "Only drivers and offices can create offers");
+};
+
+const createOffer = async (userId, role, offerData) => {
   const { shipmentId, price, estimatedDelivery, coverage, description } =
     offerData;
+  const { offererType, offererId } = await resolveOfferer(userId, role);
 
   const shipment = await Shipment.findById(shipmentId);
   if (!shipment) throw new ApiError(404, "Shipment not found");

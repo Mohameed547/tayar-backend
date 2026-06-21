@@ -6,26 +6,22 @@ const errorHandler = (err, req, res, next) => {
     ? err.message
     : "Something went wrong on our end";
 
-  // Mongoose CastError (invalid ObjectId)
   if (err.name === "CastError") {
     statusCode = 400;
     message = "Invalid identifier format";
   }
 
-  // Mongoose Validation Error
   if (err.name === "ValidationError") {
     statusCode = 400;
     message = err.message;
   }
 
-  // Mongoose Duplicate Key
   if (err.code === 11000) {
     statusCode = 409;
-    const field = Object.keys(err.keyValue)[0];
+    const field = Object.keys(err.keyValue || {})[0] || "Field";
     message = `${field} already exists`;
   }
 
-  // JWT Errors
   if (err.name === "JsonWebTokenError") {
     statusCode = 401;
     message = "Invalid token";

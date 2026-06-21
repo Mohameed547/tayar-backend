@@ -1,7 +1,6 @@
 import notificationsService from "./notifications.service.js";
 import ApiResponse from "../../shared/utils/ApiResponse.js";
 
-// GET /api/notifications
 export const getMyNotifications = async (req, res, next) => {
     try {
         const userId = req.user._id;
@@ -19,7 +18,6 @@ export const getMyNotifications = async (req, res, next) => {
     }
 };
 
-// GET /api/notifications/unread-count
 export const getUnreadCount = async (req, res, next) => {
     try {
         const userId = req.user._id;
@@ -30,7 +28,6 @@ export const getUnreadCount = async (req, res, next) => {
     }
 };
 
-// PATCH /api/notifications/:id/read
 export const markAsRead = async (req, res, next) => {
     try {
         const userId = req.user._id;
@@ -46,7 +43,6 @@ export const markAsRead = async (req, res, next) => {
     }
 };
 
-// PATCH /api/notifications/read-all
 export const markAllAsRead = async (req, res, next) => {
     try {
         const userId = req.user._id;

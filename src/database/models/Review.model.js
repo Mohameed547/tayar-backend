@@ -14,7 +14,7 @@ const reviewSchema = new mongoose.Schema(
     },
     revieweeType: {
       type: String,
-      enum: ["driver", "office"],
+      enum: ["Driver", "Office"],
       required: true,
     },
     reviewee: {

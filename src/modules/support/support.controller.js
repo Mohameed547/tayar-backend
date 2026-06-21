@@ -1,7 +1,6 @@
 import supportService from "./support.service.js";
 import ApiResponse from "../../shared/utils/ApiResponse.js";
 
-// POST /api/support
 export const createTicket = async (req, res, next) => {
     try {
         const customerId = req.user._id;
@@ -15,7 +14,6 @@ export const createTicket = async (req, res, next) => {
     }
 };
 
-// GET /api/support  (my tickets)
 export const getMyTickets = async (req, res, next) => {
     try {
         const customerId = req.user._id;
@@ -37,7 +35,6 @@ export const getMyTickets = async (req, res, next) => {
     }
 };
 
-// GET /api/support/:id
 export const getTicketById = async (req, res, next) => {
     try {
         const { id } = req.params;

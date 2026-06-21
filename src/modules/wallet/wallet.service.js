@@ -67,7 +67,7 @@ const getTransactions = async (userId, { page, limit }) => {
 };
 
 const processPayment = async (userId, amount, reference) => {
-    const CASHBACK_RATE = 0.05; // 5%
+    const CASHBACK_RATE = 0.05;
 
     const wallet = await getOrCreateWallet(userId);
 

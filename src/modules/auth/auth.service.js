@@ -17,8 +17,6 @@ import {
 import logger from "../../shared/middleware/logger.js";
 import { ENV } from "../../config/env.js";
 
-// تم إزالة الاستدعاء الخاطئ لـ authRoutes الذي كان يسبب انهيار السيرفر (Circular Dependency)
-
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {

@@ -11,7 +11,6 @@ const start = async () => {
     logger.info("Connected to MongoDB successfully.");
 
     const httpServer = http.createServer(app);
-
     initSocket(httpServer);
     logger.info("Socket.IO initialized");
 
@@ -24,4 +23,7 @@ const start = async () => {
   }
 };
 
-start();
+start().catch((err) => {
+    logger.error(`Server startup failed: ${err.message}`);
+    process.exit(1);
+});

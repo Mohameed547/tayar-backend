@@ -25,8 +25,8 @@ const createOffer = async (req, res, next) => {
     };
     const offererType = roleToOffererType[req.user.role] ?? "office";
     const offer = await offersService.createOffer(
-      offererId,
-      offererType,
+      req.user._id,
+      req.user.role,
       req.body,
     );
 
