@@ -116,7 +116,6 @@ const shipmentSchema = new mongoose.Schema(
     },
 );
 
-// Auto-generate tracking number before save
 shipmentSchema.pre("save", async function (next) {
     if (!this.trackingNumber) {
         const count = await mongoose.model("Shipment").countDocuments();

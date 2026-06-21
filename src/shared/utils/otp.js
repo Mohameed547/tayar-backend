@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 
 export function generateOtp() {
-    return Math.floor(100000 + Math.random() * 900000).toString(); // 6 digits
+    return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
 export function hashOtp(otp) {
@@ -9,7 +9,7 @@ export function hashOtp(otp) {
 }
 
 export function getOtpExpiry() {
-    return new Date(Date.now() + 10 * 60 * 1000); // Expires in 10 minutes
+    return new Date(Date.now() + 10 * 60 * 1000);
 }
 
 export function verifyOtp(otp, hashedOtp, expiryDate) {

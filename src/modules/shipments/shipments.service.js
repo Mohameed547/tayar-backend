@@ -4,7 +4,6 @@ import { getPagination } from "../../shared/utils/pagination.js";
 import { SHIPMENT_STATUS } from "../../shared/constants/shipmentStatus.js";
 
 const geocodeAddress = async (address) => {
-    // Nominatim - OpenStreetMap (مجاني بدون API key)
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`;
 
     const res = await fetch(url, {
@@ -47,8 +46,6 @@ const calcEstimatedPrice = (distanceKm, weight, deliverySpeed) => {
         estimatedPriceMax: Math.round(price * 1.1),
     };
 };
-
-// ── Service ───────────────────────────────────────────────────
 
 const createShipment = async (customerId, body) => {
     const {
@@ -104,7 +101,6 @@ const getShipmentsByCustomer = async (
 
     const [shipments, total] = await Promise.all([
         Shipment.find(query).sort({ createdAt: -1 }).skip(skip).limit(take),
-        // .populate("captain", "name phone avatar rating reviewsCount"),
         Shipment.countDocuments(query),
     ]);
 
@@ -113,7 +109,7 @@ const getShipmentsByCustomer = async (
 
 const getShipmentById = async (id, customerId) => {
     const shipment = await Shipment.findOne({ _id: id, customer: customerId })
-        .populate("captain", "name phone avatar rating reviewsCount")
+        .populate("captain", "fullName phone profileImage")
         .populate("selectedOfferId");
 
     return shipment;
@@ -150,8 +146,8 @@ const getAllShipments = async (statusFilter, { page, limit }) => {
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(take)
-            .populate("customer", "name phone")
-            .populate("captain", "name phone"),
+            .populate("customer", "fullName phone")
+            .populate("captain", "fullName phone"),
         Shipment.countDocuments(query),
     ]);
 

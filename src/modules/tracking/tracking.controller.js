@@ -1,7 +1,6 @@
 import trackingService from "./tracking.service.js";
 import ApiResponse from "../../shared/utils/ApiResponse.js";
 
-// GET /api/tracking/:shipmentId
 export const getTracking = async (req, res, next) => {
     try {
         const { shipmentId } = req.params;
@@ -12,7 +11,6 @@ export const getTracking = async (req, res, next) => {
     }
 };
 
-// POST /api/tracking/:shipmentId/location
 export const postLocationPing = async (req, res, next) => {
     try {
         const captainId = req.user._id;
@@ -30,7 +28,6 @@ export const postLocationPing = async (req, res, next) => {
     }
 };
 
-// POST /api/tracking/:shipmentId/status
 export const postStatusUpdate = async (req, res, next) => {
     try {
         const captainId = req.user._id;

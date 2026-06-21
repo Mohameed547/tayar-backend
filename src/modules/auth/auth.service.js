@@ -1,18 +1,14 @@
 import crypto from 'crypto';
-import mongoose from 'mongoose';
 import nodemailer from 'nodemailer';
-// import User from '../../database/models/User.js';
 import UserModel from '../../database/models/User.model.js';
 import Driver from '../../database/models/Driver.js';
 import Office from '../../database/models/Office.js';
-import Wallet from '../../database/models/Wallet.js';
+import Wallet from '../../database/models/Wallet.model.js';
 import ApiError from '../../shared/utils/ApiError.js';
 import { issueTokenPair, verifyRefreshToken } from '../../shared/utils/jwt.js';
 import { generateOtp, hashOtp, getOtpExpiry, verifyOtp as checkOtp } from '../../shared/utils/otp.js';
 import logger from '../../shared/middleware/logger.js';
 import { ENV } from '../../config/env.js';
-
-// تم إزالة الاستدعاء الخاطئ لـ authRoutes الذي كان يسبب انهيار السيرفر (Circular Dependency)
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -24,6 +20,7 @@ const transporter = nodemailer.createTransport({
 
 export async function register(payload) {
     const { fullName, email, phone, password, role, vehicleType, plateNumber, businessName, licenseNumber, officeAddress } = payload;
+    const normalizedRole = role || 'customer';
 
     const existing = await UserModel.findOne({ $or: [{ email: email.toLowerCase() }, { phone }] });
     if (existing) {
@@ -32,61 +29,39 @@ export async function register(payload) {
         );
     }
 
-    const session = await mongoose.startSession();
-    let user;
-    try {
-        await session.withTransaction(async () => {
-            user = new User({
-                fullName,
-                email: email.toLowerCase(),
-                phone,
-                password,
-                role,
-                status: role === 'customer' ? 'active' : 'pending',
-            });
-            await user.save({ session });
+    const user = new UserModel({
+        fullName,
+        email: email.toLowerCase(),
+        phone,
+        password,
+        role: normalizedRole,
+        status: normalizedRole === 'customer' ? 'active' : 'pending',
+    });
+    await user.save();
 
-            let ownerType = 'User';
-            let ownerDoc = user;
-
-            if (role === 'driver') {
-                const driver = new Driver({
-                    user: user._id,
-                    vehicle: { type: vehicleType, plateNumber },
-                });
-                await driver.save({ session });
-                ownerType = 'Driver';
-                ownerDoc = driver;
-            } else if (role === 'office') {
-                const office = new Office({
-                    user: user._id,
-                    businessName,
-                    licenseNumber,
-                    address: { text: officeAddress },
-                });
-                await office.save({ session });
-                ownerType = 'Office';
-                ownerDoc = office;
-            }
-
-            const wallet = new Wallet({ ownerType, owner: ownerDoc._id });
-            await wallet.save({ session });
+    if (normalizedRole === 'driver') {
+        await Driver.create({
+            user: user._id,
+            vehicle: { type: vehicleType, plateNumber },
         });
-    } finally {
-        await session.endSession();
+    } else if (normalizedRole === 'office') {
+        await Office.create({
+            user: user._id,
+            businessName,
+            licenseNumber,
+            address: { text: officeAddress },
+        });
     }
 
-    // === التعديل هنا لحل مشكلة الـ Parallel Save ===
-    // 1. نقوم بحفظ الـ Tokens أولاً وننتظر انتهاء الحفظ تماماً لمنع أي تضارب
+    await Wallet.create({ user: user._id });
+
     const tokens = issueTokenPair({ id: user._id, role: user.role });
     user.refreshTokens = [tokens.refreshToken];
     await user.save();
 
-    // 2. الآن بعد استقرار عملية الحفظ الأولى، نطلق إرسال الـ OTP في الخلفية بأمان
     sendEmailOtp(user, 'email_verification').catch((err) =>
         logger.error(`Failed to send registration OTP Email: ${err.message}`)
     );
-    // ===============================================
 
     return { user: user.toSafeJSON(), tokens };
 }
@@ -135,7 +110,7 @@ export async function refresh(refreshTokenValue) {
 }
 
 export async function logout(userId, refreshTokenValue) {
-    const user = await User.findById(userId).select('+refreshTokens');
+    const user = await UserModel.findById(userId).select('+refreshTokens');
     if (!user) return;
     user.refreshTokens = (user.refreshTokens || []).filter((t) => t !== refreshTokenValue);
     await user.save();

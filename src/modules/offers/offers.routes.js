@@ -2,7 +2,7 @@ import { Router } from "express";
 import * as Y from "./offers.controller.js";
 import authenticate from "../../shared/middleware/authenticate.js";
 import { validate } from "../../shared/middleware/validate.js";
-import { createOfferSchema } from "./offers.validation.js";
+import { createOfferSchema, acceptOfferSchema } from "./offers.validation.js";
 
 const router = Router();
 
@@ -13,6 +13,6 @@ router.post(
   validate(createOfferSchema),
   Y.createOffer,
 );
-router.patch("/:offerId/accept", authenticate, Y.acceptOffer);
+router.patch("/:offerId/accept", authenticate, validate(acceptOfferSchema, "params"), Y.acceptOffer);
 
 export default router;

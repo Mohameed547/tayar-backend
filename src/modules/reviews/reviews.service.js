@@ -10,11 +10,9 @@ const createReview = async (userId, reviewData) => {
   if (shipment.status !== "delivered")
     throw new ApiError(400, "Cannot review before shipment is delivered");
 
-  // sure the customer is the owner for this shipment or not
   if (shipment.customer.toString() !== userId.toString())
     throw new ApiError(403, "You are not allowed to review this shipment");
 
-  // sure review not exist on same shipment before
   const existing = await Review.findOne({
     shipment: shipmentId,
     reviewer: userId,
@@ -44,7 +42,6 @@ const getMyReviews = async (userId) => {
       ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
       : 0;
 
-  //shipment complete but not review yet
   const deliveredShipments = await Shipment.find({
     customer: userId,
     status: "delivered",

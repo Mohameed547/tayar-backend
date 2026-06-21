@@ -1,13 +1,11 @@
 import mongoose from "mongoose";
 
-// ── Constants ──────────────────────────────────────────────
 export const TRANSACTION_TYPE = {
     TOPUP: "topup",
     PAYMENT: "payment",
     CASHBACK: "cashback",
 };
 
-// ── Transaction Sub-Schema ─────────────────────────────────
 const transactionSchema = new mongoose.Schema(
     {
         type: {
@@ -31,7 +29,6 @@ const transactionSchema = new mongoose.Schema(
     { timestamps: true },
 );
 
-// ── Wallet Schema ──────────────────────────────────────────
 const walletSchema = new mongoose.Schema(
     {
         user: {
@@ -40,29 +37,24 @@ const walletSchema = new mongoose.Schema(
             required: true,
             unique: true,
         },
-
         walletId: {
             type: String,
             unique: true,
         },
-
         balance: {
             type: Number,
             default: 0,
             min: 0,
         },
-
         cashbackEarned: {
             type: Number,
             default: 0,
         },
-
         transactions: [transactionSchema],
     },
     { timestamps: true },
 );
 
-// ── Auto-generate Wallet ID ────────────────────────────────
 walletSchema.pre("save", async function (next) {
     if (!this.walletId) {
         const count = await mongoose.model("Wallet").countDocuments();

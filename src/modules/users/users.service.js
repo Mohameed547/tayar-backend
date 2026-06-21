@@ -7,13 +7,13 @@ const getProfile = async (userId) => {
     return user;
 };
 
-const updateProfile = async (userId, { name, phone, avatarUrl }) => {
+const updateProfile = async (userId, { fullName, phone, profileImage }) => {
     const user = await User.findById(userId);
     if (!user) throw new ApiError(404, "User not found");
 
-    if (name !== undefined) user.name = name;
+    if (fullName !== undefined) user.fullName = fullName;
     if (phone !== undefined) user.phone = phone;
-    if (avatarUrl !== undefined) user.avatarUrl = avatarUrl;
+    if (profileImage !== undefined) user.profileImage = profileImage;
 
     await user.save();
     return user;
@@ -27,11 +27,6 @@ const removePushToken = async (userId, token) => {
     await User.updateOne({ _id: userId }, { $pull: { pushTokens: token } });
 };
 
-/**
- * Shared helper — Tracking/Notifications/etc import this instead of
- * querying the User collection directly, so "what role does this user
- * have" stays in one place.
- */
 const getUserRole = async (userId) => {
     const user = await User.findById(userId).select("role");
     if (!user) throw new ApiError(404, "User not found");

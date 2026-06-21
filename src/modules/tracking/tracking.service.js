@@ -4,8 +4,6 @@ import ApiError from "../../shared/utils/ApiError.js";
 import { getIO } from "../../config/socket.js";
 import notificationsService from "../notifications/notifications.service.js";
 
-// Distance between two [lng, lat] points in kilometers (haversine).
-// Mirrors calcDistanceKm in shipments.service.js so both modules agree on geometry.
 const distanceKm = ([lng1, lat1], [lng2, lat2]) => {
     const R = 6371;
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -29,8 +27,6 @@ const computeProgress = (pickupCoords, deliveryCoords, currentCoords) => {
     return Math.max(0, Math.min(100, Math.round(percent)));
 };
 
-// Maps each status to notification copy. Centralized so adding a new
-// status later is a one-line change instead of hunting through the service.
 const STATUS_NOTIFICATION_COPY = {
     [TRACKING_STATUS.ASSIGNED]: { type: "offer_accepted", title: "Captain assigned" },
     [TRACKING_STATUS.PICKED_UP]: { type: "picked_up", title: "Package picked up!" },
@@ -39,10 +35,6 @@ const STATUS_NOTIFICATION_COPY = {
     [TRACKING_STATUS.CANCELLED]: { type: "cancelled", title: "Shipment cancelled" },
 };
 
-/**
- * Called once a captain is assigned to a shipment (typically from the
- * Offers module, right after an offer is accepted).
- */
 const initTracking = async (shipmentId, captainId) => {
     const existing = await Tracking.findOne({ shipment: shipmentId });
     if (existing) {
@@ -61,7 +53,7 @@ const initTracking = async (shipmentId, captainId) => {
 
 const getTrackingByShipmentId = async (shipmentId) => {
     const tracking = await Tracking.findOne({ shipment: shipmentId })
-        .populate("captain", "name phone avatarUrl")
+        .populate("captain", "fullName phone profileImage")
         .populate("shipment", "pickupAddress deliveryAddress pickupCoords deliveryCoords customer");
 
     if (!tracking) {
@@ -70,11 +62,6 @@ const getTrackingByShipmentId = async (shipmentId) => {
     return tracking;
 };
 
-/**
- * Called when a GPS ping arrives — either from a real captain app or the
- * demo simulation script in scripts/simulateGps.js. Both hit this exact
- * function/endpoint, so switching data sources later needs zero backend changes.
- */
 const recordLocationPing = async (shipmentId, captainId, { lng, lat }) => {
     const tracking = await Tracking.findOne({ shipment: shipmentId }).populate(
         "shipment",
@@ -115,11 +102,6 @@ const recordLocationPing = async (shipmentId, captainId, { lng, lat }) => {
     return tracking;
 };
 
-/**
- * Explicit status transitions made by the captain (picked_up, delivered,
- * cancelled, etc.) — distinct from the implicit GPS-driven in_transit
- * transition above. This is where notifications fire.
- */
 const updateStatus = async (shipmentId, captainId, { status, note }) => {
     const tracking = await Tracking.findOne({ shipment: shipmentId });
     if (!tracking) throw new ApiError(404, "No tracking record found for this shipment");

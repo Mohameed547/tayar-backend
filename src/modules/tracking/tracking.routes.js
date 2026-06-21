@@ -14,12 +14,8 @@ const router = Router();
 
 router.use(authenticate);
 
-// Customers, offices, and admins can view tracking for a shipment they're tied to.
-// Fine-grained "is this YOUR shipment" ownership checks happen once the
-// Shipments module exposes a reusable ownership lookup.
 router.get("/:shipmentId", validate(shipmentIdParamSchema, "params"), getTracking);
 
-// Only the assigned captain can push location pings or change status
 router.post(
     "/:shipmentId/location",
     authorize(ROLES.CAPTAIN),

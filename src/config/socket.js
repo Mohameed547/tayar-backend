@@ -13,7 +13,6 @@ export const initSocket = (httpServer) => {
         },
     });
 
-    // Authenticate the socket connection using the same JWT used for REST
     io.use(async (socket, next) => {
         try {
             const token = socket.handshake.auth?.token;
@@ -22,7 +21,7 @@ export const initSocket = (httpServer) => {
             }
 
             const decoded = jwt.verify(token, ENV.JWT_SECRET);
-            const user = await User.findById(decoded.id).select("-passwordHash");
+            const user = await User.findById(decoded.id).select("-password");
             if (!user) {
                 return next(new Error("User no longer exists"));
             }
@@ -35,12 +34,8 @@ export const initSocket = (httpServer) => {
     });
 
     io.on("connection", (socket) => {
-        // Every authenticated user joins their own private room automatically.
-        // Notifications are emitted here regardless of which page the user is on.
         socket.join(`user:${socket.user._id}`);
 
-        // Client explicitly joins a shipment room when opening that shipment's
-        // tracking page, e.g. socket.emit('joinShipment', shipmentId)
         socket.on("joinShipment", (shipmentId) => {
             socket.join(`shipment:${shipmentId}`);
         });

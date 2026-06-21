@@ -9,7 +9,7 @@ const offerSchema = new mongoose.Schema(
     },
     offererType: {
       type: String,
-      enum: ["driver", "office"],
+      enum: ["Driver", "Office"],
       required: true,
     },
     offerer: {
