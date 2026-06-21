@@ -92,20 +92,13 @@ const acceptOffer = async (userId, offerId) => {
     { status: "rejected" },
   );
 
-  const update = {
+  await Shipment.findByIdAndUpdate(shipment._id, {
     status: SHIPMENT_STATUS.CAPTAIN_ASSIGNMENT,
+    captain: offer.offerer,
     selectedOfferId: offer._id,
-  };
+  });
 
-  if (offer.offererType === "Driver") {
-    update.captain = offer.offerer;
-    const driver = await Driver.findById(offer.offerer).select("user");
-    if (driver?.user) {
-      await trackingService.initTracking(shipment._id, driver.user);
-    }
-  }
-
-  await Shipment.findByIdAndUpdate(shipment._id, update);
+  await trackingService.initTracking(shipment._id, offer.offerer);
 
   return offer;
 };

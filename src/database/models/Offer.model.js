@@ -14,7 +14,7 @@ const offerSchema = new mongoose.Schema(
     },
     offerer: {
       type: mongoose.Schema.Types.ObjectId,
-      refPath: "offererType",
+      ref: "User",
       required: true,
     },
     price: {

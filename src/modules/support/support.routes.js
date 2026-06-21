@@ -7,6 +7,7 @@ import {
 import { authenticate } from "../../shared/middleware/authenticate.js";
 import { validate } from "../../shared/middleware/validate.js";
 import { createTicketSchema } from "./support.validation.js";
+import { authenticate } from "../../shared/middleware/authenticate.js";
 
 const router = Router();
 

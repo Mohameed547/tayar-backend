@@ -1,12 +1,11 @@
 import User from "../../database/models/User.model.js";
+import ApiError from "../../shared/utils/ApiError.js";
 
 const getProfile = async (userId) => {
   const user = await User.findById(userId);
 
   if (!user) {
-    const error = new Error("User not found");
-    error.statusCode = 404;
-    throw error;
+    throw ApiError.notFound("User not found");
   }
 
   return user;
@@ -28,9 +27,7 @@ const updateProfile = async (userId, updateData) => {
   });
 
   if (!updatedUser) {
-    const error = new Error("User not found");
-    error.statusCode = 404;
-    throw error;
+    throw ApiError.notFound("User not found");
   }
 
   return updatedUser;

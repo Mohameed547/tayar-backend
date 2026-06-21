@@ -3,7 +3,7 @@ class ApiResponse {
         return {
             success: true,
             message,
-            ...(data !== null && { data }),
+            data,
         };
     }
 

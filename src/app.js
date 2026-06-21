@@ -4,14 +4,19 @@ import errorHandler from "./shared/middleware/errorHandler.js";
 
 const app = express();
 
+// Body parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Health check
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", message: "Server is running" });
 });
 
+// Routes
 app.use("/api", router);
+
+// Global Error Handler
 app.use(errorHandler);
 
 export default app;

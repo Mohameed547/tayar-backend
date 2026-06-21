@@ -1,19 +1,19 @@
 import logger from "./logger.js";
 
-export const errorHandler = (err, req, res, next) => {
+const errorHandler = (err, req, res, next) => {
   let statusCode = err.statusCode || 500;
-  let message = err.message || "Internal Server Error";
+  let message = err.isOperational
+    ? err.message
+    : "Something went wrong on our end";
 
   if (err.name === "CastError") {
     statusCode = 400;
-    message = "Invalid ID format";
+    message = "Invalid identifier format";
   }
 
   if (err.name === "ValidationError") {
     statusCode = 400;
-    message = Object.values(err.errors)
-      .map((e) => e.message)
-      .join(", ");
+    message = err.message;
   }
 
   if (err.code === 11000) {
@@ -32,11 +32,13 @@ export const errorHandler = (err, req, res, next) => {
     message = "Token expired";
   }
 
-  if (statusCode >= 500) {
-    logger.error(`${message}${err.stack ? `\n${err.stack}` : ""}`);
+  const status = err.status || (statusCode >= 500 ? "error" : "fail");
+  if (!err.isOperational) {
+    logger.error(`Unhandled error: ${err.message}\n${err.stack}`);
   }
 
   res.status(statusCode).json({
+    status,
     success: false,
     message,
     ...(process.env.NODE_ENV === "development" && { stack: err.stack }),

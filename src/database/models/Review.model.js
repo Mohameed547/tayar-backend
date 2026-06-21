@@ -19,7 +19,7 @@ const reviewSchema = new mongoose.Schema(
     },
     reviewee: {
       type: mongoose.Schema.Types.ObjectId,
-      refPath: "revieweeType",
+      ref: "User",
       required: true,
     },
     rating: {
