@@ -10,6 +10,7 @@ import trackingRoutes from "../modules/tracking/tracking.routes.js";
 import userRoutes from "../modules/users/users.routes.js";
 import walletRoutes from "../modules/wallet/wallet.routes.js";
 import driversRoutes from "../modules/drivers/drivers.routes.js";
+import escrowRoutes from "../modules/escrow/escrow.routes.js";
 
 const router = Router();
 
@@ -24,5 +25,6 @@ router.use("/tracking", trackingRoutes);
 router.use("/users", userRoutes);
 router.use("/wallet", walletRoutes);
 router.use("/drivers", driversRoutes);
+router.use("/escrow", escrowRoutes);
 
 export default router;

@@ -5,6 +5,8 @@ import Office from "../../database/models/Office.js";
 import ApiError from "../../shared/utils/ApiError.js";
 import { SHIPMENT_STATUS } from "../../shared/constants/shipmentStatus.js";
 import trackingService from "../tracking/tracking.service.js";
+import Escrow from "../../database/models/Escrow.model.js";
+import { getCommissionRate } from "../../shared/utils/platformConfig.js";
 
 const getShipmentOffers = async (userId, shipmentId) => {
   const shipment = await Shipment.findById(shipmentId);
@@ -99,6 +101,22 @@ const acceptOffer = async (userId, offerId) => {
   });
 
   await trackingService.initTracking(shipment._id, offer.offerer);
+
+  const commissionRate = await getCommissionRate();
+  const commissionAmount = Math.round(offer.price * (commissionRate / 100));
+  const netAmount = offer.price - commissionAmount;
+
+  const driverDoc = await Driver.findById(offer.offerer).select("user");
+
+  await Escrow.create({
+    shipment: shipment._id,
+    customer: shipment.customer,
+    driver: driverDoc.user,
+    amount: offer.price,
+    commissionRate,
+    commissionAmount,
+    netAmount,
+  });
 
   return offer;
 };
