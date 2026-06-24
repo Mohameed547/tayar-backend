@@ -1,4 +1,7 @@
 import Shipment from "../../database/models/Shipment.model.js";
+import Offer from "../../database/models/Offer.model.js";
+import Driver from "../../database/models/Driver.js";
+import Office from "../../database/models/Office.js";
 import ApiError from "../../shared/utils/ApiError.js";
 import { getPagination } from "../../shared/utils/pagination.js";
 import { SHIPMENT_STATUS } from "../../shared/constants/shipmentStatus.js";
@@ -177,6 +180,59 @@ const updateShipmentStatus = async (id, status) => {
   return shipment;
 };
 
+const getAvailableShipments = async (userId, role, { page, limit } = {}) => {
+    const { skip, take } = getPagination(page, limit);
+
+    let offererId = userId;
+    if (role === "driver") {
+        const driver = await Driver.findOne({ user: userId });
+        if (driver) offererId = driver._id;
+    } else if (role === "office") {
+        const office = await Office.findOne({ user: userId });
+        if (office) offererId = office._id;
+    }
+
+    const alreadyOffered = await Offer.find({ offerer: offererId }).select("shipment");
+    const excludeIds = alreadyOffered.map((o) => o.shipment);
+
+    const query = {
+        status: SHIPMENT_STATUS.PENDING_OFFERS,
+        _id: { $nin: excludeIds },
+    };
+
+    const [shipments, total] = await Promise.all([
+        Shipment.find(query).sort({ createdAt: -1 }).skip(skip).limit(take),
+        Shipment.countDocuments(query),
+    ]);
+
+    return { shipments, total, page: Number(page) || 1, limit: take };
+};
+
+const getMyAssignedShipments = async (userId, role, { status, page, limit } = {}) => {
+    const { skip, take } = getPagination(page, limit);
+
+    let query;
+    if (role === "office") {
+        const office = await Office.findOne({ user: userId });
+        query = office ? { assignedOffice: office._id } : { _id: null };
+    } else {
+        query = { captain: userId };
+    }
+
+    if (status) query.status = { $in: status.split(",") };
+
+    const [shipments, total] = await Promise.all([
+        Shipment.find(query)
+            .populate("captain", "fullName phone")
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(take),
+        Shipment.countDocuments(query),
+    ]);
+
+    return { shipments, total, page: Number(page) || 1, limit: take };
+};
+
 export default {
   createShipment,
   getShipmentsByCustomer,
@@ -184,4 +240,6 @@ export default {
   cancelShipment,
   getAllShipments,
   updateShipmentStatus,
+    getAvailableShipments,
+    getMyAssignedShipments,
 };

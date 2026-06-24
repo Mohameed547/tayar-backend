@@ -15,7 +15,9 @@ router.use(authenticate);
 
 router.get("/", getWallet);
 router.post("/topup", validate(topupSchema), topup);
+router.post("/deposit", validate(topupSchema), topup);
 router.post("/withdraw", validate(withdrawSchema), withdraw);
 router.get("/transactions", getTransactions);
+router.get("/history", getTransactions);
 
 export default router;

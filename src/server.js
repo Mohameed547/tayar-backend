@@ -6,21 +6,21 @@ import { ENV } from "./config/env.js";
 import logger from "./shared/middleware/logger.js";
 
 const start = async () => {
-  try {
-    await connectDB();
-    logger.info("Connected to MongoDB successfully.");
+    try {
+        await connectDB();
+        logger.info("Connected to MongoDB successfully.");
 
-    const httpServer = http.createServer(app);
-    initSocket(httpServer);
-    logger.info("Socket.IO initialized");
+        const httpServer = http.createServer(app);
+        initSocket(httpServer);
+        logger.info("Socket.IO initialized");
 
-    httpServer.listen(ENV.PORT, () => {
-      logger.info(`Server running on port ${ENV.PORT}`);
-    });
-  } catch (err) {
-    logger.error(`Server failed to start: ${err.message}`);
-    process.exit(1);
-  }
+        httpServer.listen(ENV.PORT, () => {
+            logger.info(`Server running on port ${ENV.PORT}`);
+        });
+    } catch (err) {
+        logger.error(`Server failed to start: ${err.message}`);
+        process.exit(1);
+    }
 };
 
 start().catch((err) => {

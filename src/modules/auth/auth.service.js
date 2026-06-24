@@ -61,6 +61,66 @@ export async function register(payload) {
         phone,
         password,
         role,
+        vehicleType,
+        plateNumber,
+        businessName,
+        licenseNumber,
+        officeAddress,
+    } = payload;
+
+    const existing = await User.findOne({
+        $or: [{ email: email.toLowerCase() }, { phone }],
+    });
+    if (existing) {
+        throw ApiError.conflict(
+            existing.email === email.toLowerCase()
+                ? "Email is already registered"
+                : "Phone number is already registered",
+        );
+    }
+
+    const session = await mongoose.startSession();
+    let user;
+    try {
+        await session.withTransaction(async () => {
+            user = new User({
+                fullName,
+                email: email.toLowerCase(),
+                phone,
+                password,
+                role,
+                status:
+                    role === "customer" || role === "office"
+                        ? "active"
+                        : "pending",
+            });
+            await user.save({ session });
+
+            let ownerType = "User";
+            let ownerDoc = user;
+
+            if (role === "driver") {
+                const driver = new Driver({
+                    user: user._id,
+                    vehicle: { type: vehicleType, plateNumber },
+                });
+                await driver.save({ session });
+                ownerType = "Driver";
+                ownerDoc = driver;
+            } else if (role === "office") {
+                const office = new Office({
+                    user: user._id,
+                    businessName,
+                    licenseNumber,
+                    address: { text: officeAddress },
+                });
+                await office.save({ session });
+                ownerType = "Office";
+                ownerDoc = office;
+            }
+
+            // const wallet = new Wallet({ ownerType, owner: ownerDoc._id });
+            // await wallet.save({ session });
         status: role === "customer" ? "active" : "pending",
       });
       await user.save({ session });

@@ -19,7 +19,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Health check
 app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok", message: "Server is running" });
+    res.status(200).json({ status: "ok", message: "Server is running" });
 });
 
 // Routes

@@ -56,4 +56,18 @@ const acceptOffer = async (req, res, next) => {
   }
 };
 
-export { getShipmentOffers, createOffer, acceptOffer };
+const getMyOffers = async (req, res, next) => {
+  try {
+    const offers = await offersService.getMyOffers(req.user._id, req.user.role);
+
+    res.status(200).json({
+      success: true,
+      total: offers.length,
+      data: offers,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export { getShipmentOffers, createOffer, acceptOffer, getMyOffers };

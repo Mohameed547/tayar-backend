@@ -33,4 +33,31 @@ const updateProfile = async (userId, updateData) => {
   return updatedUser;
 };
 
-export { getProfile, updateProfile };
+const changePassword = async (userId, currentPassword, newPassword) => {
+  const user = await User.findById(userId).select("+password");
+  if (!user) throw ApiError.notFound("User not found");
+
+  const isMatch = await user.comparePassword(currentPassword);
+  if (!isMatch) throw ApiError.badRequest("Current password is incorrect");
+
+  user.password = newPassword;
+  await user.save();
+
+  return { message: "Password updated successfully" };
+};
+
+const updateAvatar = async (userId, profileImage) => {
+  if (!profileImage) throw ApiError.badRequest("profileImage is required");
+
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    { profileImage },
+    { new: true, runValidators: true },
+  );
+
+  if (!updatedUser) throw ApiError.notFound("User not found");
+
+  return updatedUser;
+};
+
+export { getProfile, updateProfile, changePassword, updateAvatar };

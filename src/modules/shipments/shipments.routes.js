@@ -1,12 +1,7 @@
 import { Router } from "express";
 import {
-  createShipment,
-  getMyShipments,
-  getShipmentById,
-  cancelShipment,
-  getAllShipments,
-  updateShipmentStatus,
-} from "./shipments.controller.js";
+    * as Y
+    from "./shipments.controller.js";
 
 import {
   createShipmentSchema,
@@ -26,17 +21,26 @@ router.patch(
   "/admin/:id/status",
   authorize(ROLES.ADMIN),
   validate(updateShipmentStatusSchema),
-  updateShipmentStatus,
+  Y.updateShipmentStatus,
+router.get(
+    "/available",
+    authorize(ROLES.DRIVER, ROLES.OFFICE),
+    Y.getAvailableShipments,
+);
+router.get(
+    "/mine/assigned",
+    authorize(ROLES.DRIVER, ROLES.OFFICE),
+    Y.getMyAssignedShipments,
 );
 
 router.post(
   "/",
   authorize(ROLES.CUSTOMER),
   validate(createShipmentSchema),
-  createShipment,
+  Y.createShipment,
 );
-router.get("/", authorize(ROLES.CUSTOMER), getMyShipments);
-router.get("/:id", authorize(ROLES.CUSTOMER), getShipmentById);
-router.patch("/:id/cancel", authorize(ROLES.CUSTOMER), cancelShipment);
+router.get("/", authorize(ROLES.CUSTOMER), Y.getMyShipments);
+router.get("/:id", authorize(ROLES.CUSTOMER), Y.getShipmentById);
+router.patch("/:id/cancel", authorize(ROLES.CUSTOMER), Y.cancelShipment);
 
 export default router;
