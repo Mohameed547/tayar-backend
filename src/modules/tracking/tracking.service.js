@@ -5,6 +5,7 @@ import Shipment from "../../database/models/Shipment.model.js";
 import ApiError from "../../shared/utils/ApiError.js";
 import { getIO } from "../../config/socket.js";
 import notificationsService from "../notifications/notifications.service.js";
+import Driver from "../../database/models/Driver.js";
 
 const distanceKm = ([lng1, lat1], [lng2, lat2]) => {
   const R = 6371;
@@ -84,7 +85,8 @@ const recordLocationPing = async (shipmentId, captainId, { lng, lat }) => {
   if (!tracking)
     throw new ApiError(404, "No tracking record found for this shipment");
 
-  if (String(tracking.captain) !== String(captainId)) {
+  const driverDoc = await Driver.findOne({ user: captainId }).select("_id");
+  if (!driverDoc || String(tracking.captain) !== String(driverDoc._id)) {
     throw new ApiError(
       403,
       "You are not the assigned captain for this shipment",

@@ -158,7 +158,11 @@ const getAllShipments = async (statusFilter, { page, limit, search }) => {
       .skip(skip)
       .limit(take)
       .populate("customer", "fullName phone")
-      .populate("captain", "fullName phone"),
+      .populate({
+        path: "captain",
+        model: "Driver",
+        populate: { path: "user", select: "fullName phone" },
+      }),
     Shipment.countDocuments(query),
   ]);
 
