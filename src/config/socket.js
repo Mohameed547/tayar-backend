@@ -43,6 +43,29 @@ export const initSocket = (httpServer) => {
     socket.on("leaveShipment", (shipmentId) => {
       socket.leave(`shipment:${shipmentId}`);
     });
+
+    // Captain emits live GPS coordinates while en route; broadcast to
+    // everyone watching this shipment (office dashboard, customer tracking).
+    socket.on("captain:updateLocation", async ({ shipmentId, lng, lat }) => {
+      try {
+        if (socket.user.role !== "driver") return;
+
+        const trackingService = (await import("../modules/tracking/tracking.service.js")).default;
+        const tracking = await trackingService.recordLocationPing(shipmentId, socket.user._id, {
+          lng,
+          lat,
+        });
+
+        io.to(`shipment:${shipmentId}`).emit("locationUpdate", {
+          shipmentId,
+          coords: tracking.currentLocation?.coords,
+          progressPercent: tracking.progressPercent,
+          updatedAt: tracking.currentLocation?.updatedAt,
+        });
+      } catch (err) {
+        socket.emit("trackingError", { message: err.message ?? "Unable to update location" });
+      }
+    });
   });
 
   return io;

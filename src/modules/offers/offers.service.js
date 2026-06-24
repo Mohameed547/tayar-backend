@@ -92,15 +92,40 @@ const acceptOffer = async (userId, offerId) => {
     { status: "rejected" },
   );
 
-  await Shipment.findByIdAndUpdate(shipment._id, {
-    status: SHIPMENT_STATUS.CAPTAIN_ASSIGNMENT,
-    captain: offer.offerer,
-    selectedOfferId: offer._id,
-  });
-
-  await trackingService.initTracking(shipment._id, offer.offerer);
+  if (offer.offererType === "Office") {
+    // The office still needs to assign one of its own captains.
+    await Shipment.findByIdAndUpdate(shipment._id, {
+      status: SHIPMENT_STATUS.CAPTAIN_ASSIGNMENT,
+      captain: null,
+      assignedOffice: offer.offerer,
+      selectedOfferId: offer._id,
+    });
+  } else {
+    // Independent captain offer: assign the captain's User id directly.
+    const driver = await Driver.findById(offer.offerer);
+    await Shipment.findByIdAndUpdate(shipment._id, {
+      status: SHIPMENT_STATUS.CAPTAIN_ASSIGNMENT,
+      captain: driver ? driver.user : offer.offerer,
+      assignedOffice: null,
+      selectedOfferId: offer._id,
+    });
+    await trackingService.initTracking(
+      shipment._id,
+      driver ? driver.user : offer.offerer,
+    );
+  }
 
   return offer;
 };
 
-export { getShipmentOffers, createOffer, acceptOffer };
+const getMyOffers = async (userId, role) => {
+  const { offererId } = await resolveOfferer(userId, role);
+
+  const offers = await Offer.find({ offerer: offererId })
+    .populate("shipment", "trackingNumber pickupAddress deliveryAddress status")
+    .sort({ createdAt: -1 });
+
+  return offers;
+};
+
+export { getShipmentOffers, createOffer, acceptOffer, getMyOffers };

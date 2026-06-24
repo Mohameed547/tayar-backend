@@ -69,6 +69,20 @@ export const cancelShipment = async (req, res, next) => {
     }
 };
 
+export const getAvailableShipments = async (req, res, next) => {
+    try {
+        const { page, limit } = req.query;
+        const result = await shipmentService.getAvailableShipments(
+            req.user._id,
+            req.user.role,
+            { page, limit },
+        );
+        return res.status(200).json(ApiResponse.success(result));
+    } catch (err) {
+        next(err);
+    }
+};
+
 export const getAllShipments = async (req, res, next) => {
     try {
         const { status, page, limit } = req.query;
@@ -79,6 +93,20 @@ export const getAllShipments = async (req, res, next) => {
             limit,
         });
 
+        return res.status(200).json(ApiResponse.success(result));
+    } catch (err) {
+        next(err);
+    }
+};
+
+export const getMyAssignedShipments = async (req, res, next) => {
+    try {
+        const { status, page, limit } = req.query;
+        const result = await shipmentService.getMyAssignedShipments(
+            req.user._id,
+            req.user.role,
+            { status, page, limit },
+        );
         return res.status(200).json(ApiResponse.success(result));
     } catch (err) {
         next(err);

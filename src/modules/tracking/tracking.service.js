@@ -113,13 +113,13 @@ const recordLocationPing = async (shipmentId, captainId, { lng, lat }) => {
       status: TRACKING_STATUS.IN_TRANSIT,
       timestamp: new Date(),
     });
-
+    await tracking.save();
     await Shipment.findByIdAndUpdate(shipmentId, {
       status: TRACKING_STATUS.IN_TRANSIT,
     }); // ← السطر الجديد
   }
 
-  await tracking.save();
+  
 
   getIO().to(`shipment:${shipmentId}`).emit("locationUpdate", {
     shipmentId,
@@ -169,14 +169,14 @@ const updateStatus = async (shipmentId, captainId, { status, note }) => {
 
   tracking.status = status;
   tracking.milestones.push({ status, timestamp: new Date(), note });
-
+  await tracking.save();
   await Shipment.findByIdAndUpdate(shipmentId, { status }); // ← السطر الجديد
 
   if (status === TRACKING_STATUS.DELIVERED) {
     tracking.progressPercent = 100;
   }
 
-  await tracking.save();
+  ;
 
   getIO().to(`shipment:${shipmentId}`).emit("statusUpdate", {
     shipmentId,

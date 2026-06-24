@@ -28,4 +28,34 @@ const updateMyProfile = async (req, res, next) => {
     next(error);
   }
 };
-export { getMyProfile, updateMyProfile };
+const changeMyPassword = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { currentPassword, newPassword } = req.body;
+    const result = await profileService.changePassword(userId, currentPassword, newPassword);
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateMyAvatar = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const updatedUser = await profileService.updateAvatar(userId, req.body.profileImage);
+
+    res.status(200).json({
+      success: true,
+      message: "Avatar updated successfully",
+      data: updatedUser,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export { getMyProfile, updateMyProfile, changeMyPassword, updateMyAvatar };
