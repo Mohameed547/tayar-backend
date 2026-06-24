@@ -5,6 +5,8 @@ import {
     getShipmentById,
     cancelShipment,
     getAllShipments,
+    getAvailableShipments,
+    getMyAssignedShipments,
 } from "./shipments.controller.js";
 import { authenticate } from "../../shared/middleware/authenticate.js";
 import { authorize } from "../../shared/middleware/authorize.js";
@@ -17,6 +19,16 @@ const router = Router();
 router.use(authenticate);
 
 router.get("/admin/all", authorize(ROLES.ADMIN), getAllShipments);
+router.get(
+    "/available",
+    authorize(ROLES.DRIVER, ROLES.OFFICE),
+    getAvailableShipments,
+);
+router.get(
+    "/mine/assigned",
+    authorize(ROLES.DRIVER, ROLES.OFFICE),
+    getMyAssignedShipments,
+);
 
 router.post(
     "/",

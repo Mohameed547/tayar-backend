@@ -6,6 +6,7 @@ import { createOfferSchema, acceptOfferSchema } from "./offers.validation.js";
 
 const router = Router();
 
+router.get("/mine", authenticate, Y.getMyOffers);
 router.get("/shipment/:shipmentId", authenticate, Y.getShipmentOffers);
 router.post(
   "/create",
