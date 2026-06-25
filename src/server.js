@@ -7,6 +7,7 @@ import logger from "./shared/middleware/logger.js";
 
 const start = async () => {
     try {
+        
         await connectDB();
         logger.info("Connected to MongoDB successfully.");
 

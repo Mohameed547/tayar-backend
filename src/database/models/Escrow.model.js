@@ -16,7 +16,7 @@ const escrowSchema = new mongoose.Schema(
     driver: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
     },
     amount: {
       type: Number,

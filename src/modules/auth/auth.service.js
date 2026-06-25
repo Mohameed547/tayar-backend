@@ -54,6 +54,7 @@ export async function register(payload) {
   const session = await mongoose.startSession();
   let user;
   try {
+    logger.info(`Starting registration transaction for role: ${role}`);
     await session.withTransaction(async () => {
       user = new User({
         fullName,
@@ -64,19 +65,18 @@ export async function register(payload) {
         status: role === "customer" || role === "office" ? "active" : "pending",
       });
       await user.save({ session });
-
-      let ownerType = "User";
-      let ownerDoc = user;
+      logger.info(`Saved User in transaction: ${user._id}`);
 
       if (role === "driver") {
+        logger.info(`Saving Driver in transaction for user: ${user._id}`);
         const driver = new Driver({
           user: user._id,
           vehicle: { type: vehicleType, plateNumber },
         });
         await driver.save({ session });
-        ownerType = "Driver";
-        ownerDoc = driver;
+        logger.info(`Saved Driver in transaction: ${driver._id}`);
       } else if (role === "office") {
+        logger.info(`Saving Office in transaction for user: ${user._id}`);
         const office = new Office({
           user: user._id,
           businessName,
@@ -84,13 +84,54 @@ export async function register(payload) {
           address: { text: officeAddress },
         });
         await office.save({ session });
-        ownerType = "Office";
-        ownerDoc = office;
+        logger.info(`Saved Office in transaction: ${office._id}`);
       }
-
-      // const wallet = new Wallet({ ownerType, owner: ownerDoc._id });
-      // await wallet.save({ session });
     });
+  } catch (txError) {
+    logger.warn(`Transaction failed: ${txError.message}. Code: ${txError.code}. Checking if standalone fallback is needed.`);
+    // Check if it is a transaction/replica set error
+    const isStandaloneError = 
+      txError.message?.includes("replica set") || 
+      txError.message?.includes("Transaction") || 
+      txError.code === 20 || 
+      txError.codeName === "IllegalOperation";
+
+    if (isStandaloneError) {
+      logger.info(`Standalone fallback triggered for role: ${role}`);
+      user = new User({
+        fullName,
+        email: email.toLowerCase(),
+        phone,
+        password,
+        role,
+        status: role === "customer" || role === "office" ? "active" : "pending",
+      });
+      await user.save();
+      logger.info(`Saved User in standalone: ${user._id}`);
+
+      if (role === "driver") {
+        logger.info(`Saving Driver in standalone for user: ${user._id}`);
+        const driver = new Driver({
+          user: user._id,
+          vehicle: { type: vehicleType, plateNumber },
+        });
+        await driver.save();
+        logger.info(`Saved Driver in standalone: ${driver._id}`);
+      } else if (role === "office") {
+        logger.info(`Saving Office in standalone for user: ${user._id}`);
+        const office = new Office({
+          user: user._id,
+          businessName,
+          licenseNumber,
+          address: { text: officeAddress },
+        });
+        await office.save();
+        logger.info(`Saved Office in standalone: ${office._id}`);
+      }
+    } else {
+      logger.error(`Non-standalone transaction error: ${txError.message}`);
+      throw txError;
+    }
   } finally {
     await session.endSession();
   }
@@ -197,6 +238,8 @@ export async function sendEmailOtp(user, purpose) {
   user.otpExpires = getOtpExpiry();
   user.otpPurpose = purpose;
   await user.save();
+
+  logger.info(`[Email OTP] Generated OTP for ${user.email} (${purpose}): ${otp}`);
 
   const mailOptions = {
     from: `"DeliveryHub Support" <${ENV.EMAIL_USER}>`,
