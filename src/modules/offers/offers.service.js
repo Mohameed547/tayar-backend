@@ -121,12 +121,19 @@ const acceptOffer = async (userId, offerId) => {
   const commissionAmount = Math.round(offer.price * (commissionRate / 100));
   const netAmount = offer.price - commissionAmount;
 
-  const driverDoc = await Driver.findById(offer.offerer).select("user");
+  let providerUser = null;
+  if (offer.offererType === "Office") {
+    const officeDoc = await Office.findById(offer.offerer).select("user");
+    providerUser = officeDoc ? officeDoc.user : null;
+  } else {
+    const driverDoc = await Driver.findById(offer.offerer).select("user");
+    providerUser = driverDoc ? driverDoc.user : null;
+  }
 
   await Escrow.create({
     shipment: shipment._id,
     customer: shipment.customer,
-    driver: driverDoc.user,
+    driver: providerUser,
     amount: offer.price,
     commissionRate,
     commissionAmount,
