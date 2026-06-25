@@ -5,8 +5,7 @@ import settingsController from "./settings.controller.js";
 
 const router = Router();
 
-router.use(authenticate, authorize("super_admin", "moderator"));
-
+router.use(authenticate, authorize("admin", "moderator"));
 router.get("/", settingsController.getSettings);
 router.patch("/", settingsController.updateSettings);
 

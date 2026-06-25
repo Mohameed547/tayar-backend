@@ -5,6 +5,8 @@ import Office from "../../database/models/Office.js";
 import ApiError from "../../shared/utils/ApiError.js";
 import { SHIPMENT_STATUS } from "../../shared/constants/shipmentStatus.js";
 import trackingService from "../tracking/tracking.service.js";
+import Escrow from "../../database/models/Escrow.model.js";
+import { getCommissionRate } from "../../shared/utils/platformConfig.js";
 
 const getShipmentOffers = async (userId, shipmentId) => {
   const shipment = await Shipment.findById(shipmentId);
@@ -92,15 +94,56 @@ const acceptOffer = async (userId, offerId) => {
     { status: "rejected" },
   );
 
-  await Shipment.findByIdAndUpdate(shipment._id, {
-    status: SHIPMENT_STATUS.CAPTAIN_ASSIGNMENT,
-    captain: offer.offerer,
-    selectedOfferId: offer._id,
-  });
+  if (offer.offererType === "Office") {
+    // The office still needs to assign one of its own captains.
+    await Shipment.findByIdAndUpdate(shipment._id, {
+      status: SHIPMENT_STATUS.CAPTAIN_ASSIGNMENT,
+      captain: null,
+      assignedOffice: offer.offerer,
+      selectedOfferId: offer._id,
+    });
+  } else {
+    // Independent captain offer: assign the captain's User id directly.
+    const driver = await Driver.findById(offer.offerer);
+    await Shipment.findByIdAndUpdate(shipment._id, {
+      status: SHIPMENT_STATUS.CAPTAIN_ASSIGNMENT,
+      captain: driver ? driver.user : offer.offerer,
+      assignedOffice: null,
+      selectedOfferId: offer._id,
+    });
+    await trackingService.initTracking(
+      shipment._id,
+      driver ? driver.user : offer.offerer,
+    );
+  }
 
-  await trackingService.initTracking(shipment._id, offer.offerer);
+  const commissionRate = await getCommissionRate();
+  const commissionAmount = Math.round(offer.price * (commissionRate / 100));
+  const netAmount = offer.price - commissionAmount;
+
+  const driverDoc = await Driver.findById(offer.offerer).select("user");
+
+  await Escrow.create({
+    shipment: shipment._id,
+    customer: shipment.customer,
+    driver: driverDoc.user,
+    amount: offer.price,
+    commissionRate,
+    commissionAmount,
+    netAmount,
+  });
 
   return offer;
 };
 
-export { getShipmentOffers, createOffer, acceptOffer };
+const getMyOffers = async (userId, role) => {
+  const { offererId } = await resolveOfferer(userId, role);
+
+  const offers = await Offer.find({ offerer: offererId })
+    .populate("shipment", "trackingNumber pickupAddress deliveryAddress status")
+    .sort({ createdAt: -1 });
+
+  return offers;
+};
+
+export { getShipmentOffers, createOffer, acceptOffer, getMyOffers };

@@ -1,5 +1,6 @@
 import trackingService from "./tracking.service.js";
 import ApiResponse from "../../shared/utils/ApiResponse.js";
+// import { getIO } from "../../config/socket.js";
 
 export const getTracking = async (req, res, next) => {
     try {
@@ -22,6 +23,19 @@ export const postLocationPing = async (req, res, next) => {
             lat,
         });
 
+        // try {
+        //     getIO()
+        //         .to(`shipment:${shipmentId}`)
+        //         .emit("locationUpdate", {
+        //             shipmentId,
+        //             coords: tracking.currentLocation?.coords,
+        //             progressPercent: tracking.progressPercent,
+        //             updatedAt: tracking.currentLocation?.updatedAt,
+        //         });
+        // } catch {
+        //     // Socket layer may not be initialized (e.g. in tests); REST response still succeeds.
+        // }
+
         return res.status(200).json(ApiResponse.success(tracking, "Location updated"));
     } catch (err) {
         next(err);
@@ -38,6 +52,14 @@ export const postStatusUpdate = async (req, res, next) => {
             status,
             note,
         });
+
+        // try {
+        //     getIO()
+        //         .to(`shipment:${shipmentId}`)
+        //         .emit("shipmentStatusUpdate", { shipmentId, status: tracking.status, note });
+        // } catch {
+        //     // Socket layer may not be initialized (e.g. in tests); REST response still succeeds.
+        // }
 
         return res.status(200).json(ApiResponse.success(tracking, "Status updated"));
     } catch (err) {

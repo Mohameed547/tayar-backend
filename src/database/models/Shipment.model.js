@@ -84,7 +84,15 @@ const shipmentSchema = new mongoose.Schema(
 
     captain: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "Driver",
+      default: null,
+    },
+
+    // Set when an Office's offer is accepted; the office must then assign
+    // one of its own captains via the /office/offers endpoints.
+    assignedOffice: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Office",
       default: null,
     },
 

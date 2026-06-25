@@ -210,6 +210,8 @@ const ESCROW_COLOR_MAP = {
 };
 
 const getEscrowStatuses = async () => {
+    // Real data straight from the Escrow collection — same source the
+    // admin escrow.service.js stats use (sum of `amount` grouped by status).
     const agg = await Escrow.aggregate([
         { $group: { _id: "$status", total: { $sum: "$amount" } } },
     ]);
@@ -217,16 +219,17 @@ const getEscrowStatuses = async () => {
     const byStatus = Object.fromEntries(agg.map((a) => [a._id, a.total]));
     const grandTotal = agg.reduce((sum, a) => sum + a.total, 0) || 1;
 
-    return Object.entries(ESCROW_LABEL_MAP)
-        .filter(([key]) => byStatus[key] !== undefined)
-        .map(([key, label]) => ({
-            label,
-            amount: byStatus[key] ?? 0,
-            percentage: Number(
-                (((byStatus[key] ?? 0) / grandTotal) * 100).toFixed(0),
-            ),
-            color: ESCROW_COLOR_MAP[key],
-        }));
+    // Always return all known statuses (held/released/disputed/refunded),
+    // defaulting missing ones to 0, so the dashboard UI always has rows to
+    // render instead of an empty section when there's no escrow data yet.
+    return Object.entries(ESCROW_LABEL_MAP).map(([key, label]) => ({
+        label,
+        amount: byStatus[key] ?? 0,
+        percentage: Number(
+            (((byStatus[key] ?? 0) / grandTotal) * 100).toFixed(0),
+        ),
+        color: ESCROW_COLOR_MAP[key],
+    }));
 };
 
 // ── Recent users ─────────────────────────────────────────────────────────

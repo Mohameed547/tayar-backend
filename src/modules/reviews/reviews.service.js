@@ -61,4 +61,22 @@ const getMyReviews = async (userId) => {
   };
 };
 
-export { createReview, getMyReviews };
+const getReceivedRatings = async (userId) => {
+  const reviews = await Review.find({ reviewee: userId })
+    .populate("reviewer", "fullName profileImage")
+    .populate("shipment", "trackingNumber")
+    .sort({ createdAt: -1 });
+
+  const averageRating =
+    reviews.length > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+      : 0;
+
+  return {
+    averageRating: Math.round(averageRating * 10) / 10,
+    ratingsCount: reviews.length,
+    reviews,
+  };
+};
+
+export { createReview, getMyReviews, getReceivedRatings };
