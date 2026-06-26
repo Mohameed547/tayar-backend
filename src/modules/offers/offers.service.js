@@ -20,14 +20,49 @@ const getShipmentOffers = async (userId, shipmentId) => {
     throw new ApiError(403, "You are not allowed to view these offers");
 
   const offers = await Offer.find({ shipment: shipment._id })
-    .populate("offerer", "fullName profileImage")
     .sort({ price: 1 });
 
-  const bestValue = offers.find((o) => o.coverage === "Insured") || offers[0];
+  // Manually populate offerer details to resolve Driver/Office schemas
+  const populatedOffers = await Promise.all(
+    offers.map(async (offer) => {
+      const offerObj = offer.toObject();
+      let providerName = "Provider";
+      let providerAvatar = null;
+      let rating = 4.8;
+      let reviewCount = 120;
 
-  const result = offers.map((offer) => ({
-    ...offer.toObject(),
-    isBestValue: bestValue && offer._id.equals(bestValue._id),
+      if (offer.offererType === "Driver") {
+        const driver = await Driver.findById(offer.offerer).populate("user", "fullName profileImage");
+        if (driver && driver.user) {
+          providerName = driver.user.fullName;
+          providerAvatar = driver.user.profileImage;
+          rating = driver.rating || 4.8;
+        }
+      } else if (offer.offererType === "Office") {
+        const office = await Office.findById(offer.offerer).populate("user", "fullName profileImage");
+        if (office) {
+          providerName = office.businessName || (office.user && office.user.fullName) || "Logistics Office";
+          providerAvatar = office.user ? office.user.profileImage : null;
+        }
+      }
+
+      offerObj.offerer = {
+        _id: offer.offerer,
+        fullName: providerName,
+        profileImage: providerAvatar,
+        rating,
+        reviewCount,
+      };
+
+      return offerObj;
+    })
+  );
+
+  const bestValue = populatedOffers.find((o) => o.coverage === "Insured") || populatedOffers[0];
+
+  const result = populatedOffers.map((offer) => ({
+    ...offer,
+    isBestValue: bestValue && offer._id.toString() === bestValue._id.toString(),
   }));
 
   return result;
@@ -105,6 +140,7 @@ const acceptOffer = async (userId, offerId) => {
       captain: null,
       assignedOffice: offer.offerer,
       selectedOfferId: offer._id,
+      etaDescription: offer.estimatedDelivery,
     });
   } else {
     // Independent captain offer: assign the captain's User id directly.
@@ -114,6 +150,7 @@ const acceptOffer = async (userId, offerId) => {
       captain: driver ? driver.user : offer.offerer,
       assignedOffice: null,
       selectedOfferId: offer._id,
+      etaDescription: offer.estimatedDelivery,
     });
     await trackingService.initTracking(
       shipment._id,
