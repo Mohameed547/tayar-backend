@@ -84,7 +84,7 @@ const shipmentSchema = new mongoose.Schema(
 
     captain: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Driver",
+      ref: "User",
       default: null,
     },
 

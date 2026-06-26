@@ -276,11 +276,20 @@ const initTracking = async (shipmentId, captainId) => {
 };
 
 const getTrackingByShipmentId = async (shipmentId) => {
-  const tracking = await Tracking.findOne({ shipment: shipmentId })
+  let query = { shipment: shipmentId };
+  if (!shipmentId.match(/^[0-9a-fA-F]{24}$/)) {
+    const shipmentDoc = await Shipment.findOne({ trackingNumber: shipmentId.toUpperCase() });
+    if (!shipmentDoc) {
+      throw new ApiError(404, "Shipment not found");
+    }
+    query = { shipment: shipmentDoc._id };
+  }
+
+  const tracking = await Tracking.findOne(query)
     .populate("captain", "fullName phone profileImage")
     .populate(
       "shipment",
-      "pickupAddress deliveryAddress pickupCoords deliveryCoords customer",
+      "pickupAddress deliveryAddress pickupCoords deliveryCoords customer status trackingNumber",
     );
 
   if (!tracking) {
@@ -290,7 +299,14 @@ const getTrackingByShipmentId = async (shipmentId) => {
 };
 
 const recordLocationPing = async (shipmentId, captainId, { lng, lat }) => {
-  const tracking = await Tracking.findOne({ shipment: shipmentId }).populate(
+  let resolvedId = shipmentId;
+  if (!shipmentId.match(/^[0-9a-fA-F]{24}$/)) {
+    const shipmentDoc = await Shipment.findOne({ trackingNumber: shipmentId.toUpperCase() });
+    if (!shipmentDoc) throw new ApiError(404, "Shipment not found");
+    resolvedId = shipmentDoc._id;
+  }
+
+  const tracking = await Tracking.findOne({ shipment: resolvedId }).populate(
     "shipment",
     "pickupCoords deliveryCoords",
   );
@@ -335,13 +351,13 @@ const recordLocationPing = async (shipmentId, captainId, { lng, lat }) => {
   await tracking.save();
 
   if (justTransitionedToInTransit) {
-    await Shipment.findByIdAndUpdate(shipmentId, {
+    await Shipment.findByIdAndUpdate(resolvedId, {
       status: TRACKING_STATUS.IN_TRANSIT,
-    }); // ← السطر الجديد (نُقل بعد tracking.save() عشان لو فيه خطأ، الشحنة تفضل متزامنة مع التتبع)
+    });
   }
 
-  getIO().to(`shipment:${shipmentId}`).emit("locationUpdate", {
-    shipmentId,
+  getIO().to(`shipment:${resolvedId}`).emit("locationUpdate", {
+    shipmentId: resolvedId,
     coords: currentCoords,
     progressPercent: tracking.progressPercent,
     updatedAt: tracking.currentLocation.updatedAt,
@@ -351,7 +367,14 @@ const recordLocationPing = async (shipmentId, captainId, { lng, lat }) => {
 };
 
 const updateStatus = async (shipmentId, captainId, { status, note }) => {
-  const tracking = await Tracking.findOne({ shipment: shipmentId });
+  let resolvedId = shipmentId;
+  if (!shipmentId.match(/^[0-9a-fA-F]{24}$/)) {
+    const shipmentDoc = await Shipment.findOne({ trackingNumber: shipmentId.toUpperCase() });
+    if (!shipmentDoc) throw new ApiError(404, "Shipment not found");
+    resolvedId = shipmentDoc._id;
+  }
+
+  const tracking = await Tracking.findOne({ shipment: resolvedId });
   if (!tracking)
     throw new ApiError(404, "No tracking record found for this shipment");
 
@@ -395,10 +418,10 @@ const updateStatus = async (shipmentId, captainId, { status, note }) => {
 
   await tracking.save();
 
-  await Shipment.findByIdAndUpdate(shipmentId, { status }); // ← السطر الجديد (نُقل بعد tracking.save())
+  await Shipment.findByIdAndUpdate(resolvedId, { status });
 
-  getIO().to(`shipment:${shipmentId}`).emit("statusUpdate", {
-    shipmentId,
+  getIO().to(`shipment:${resolvedId}`).emit("statusUpdate", {
+    shipmentId: resolvedId,
     status,
     note,
     timestamp: new Date(),
@@ -406,14 +429,14 @@ const updateStatus = async (shipmentId, captainId, { status, note }) => {
 
   const copy = STATUS_NOTIFICATION_COPY[status];
   if (copy) {
-    const shipment = await Shipment.findById(shipmentId).select("customer");
+    const shipment = await Shipment.findById(resolvedId).select("customer");
     if (shipment?.customer) {
       await notificationsService.createNotification({
         userId: shipment.customer,
         type: copy.type,
         title: copy.title,
         message: note || `${copy.title} for your shipment.`,
-        relatedShipmentId: shipmentId,
+        relatedShipmentId: resolvedId,
       });
     }
   }

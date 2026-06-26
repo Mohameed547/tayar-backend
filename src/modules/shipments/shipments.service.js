@@ -104,7 +104,11 @@ const getShipmentsByCustomer = async (
   if (statusFilter) query.status = { $in: statusFilter };
 
   const [shipments, total] = await Promise.all([
-    Shipment.find(query).sort({ createdAt: -1 }).skip(skip).limit(take),
+    Shipment.find(query)
+      .populate("captain", "fullName phone profileImage")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(take),
     Shipment.countDocuments(query),
   ]);
 
@@ -112,7 +116,13 @@ const getShipmentsByCustomer = async (
 };
 
 const getShipmentById = async (id, customerId) => {
-  const shipment = await Shipment.findOne({ _id: id, customer: customerId })
+  const query = id.match(/^[0-9a-fA-F]{24}$/)
+    ? { _id: id }
+    : { trackingNumber: id.toUpperCase() };
+
+  if (customerId) query.customer = customerId;
+
+  const shipment = await Shipment.findOne(query)
     .populate("captain", "fullName phone profileImage")
     .populate("selectedOfferId");
 

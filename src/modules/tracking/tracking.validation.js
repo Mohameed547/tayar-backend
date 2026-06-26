@@ -2,7 +2,7 @@ import Joi from "joi";
 import { TRACKING_STATUS } from "../../database/models/Tracking.model.js";
 
 export const shipmentIdParamSchema = Joi.object({
-    shipmentId: Joi.string().hex().length(24).required(),
+    shipmentId: Joi.string().required(),
 });
 
 export const locationPingSchema = Joi.object({

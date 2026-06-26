@@ -9,13 +9,17 @@ import Escrow from "../../database/models/Escrow.model.js";
 import { getCommissionRate } from "../../shared/utils/platformConfig.js";
 
 const getShipmentOffers = async (userId, shipmentId) => {
-  const shipment = await Shipment.findById(shipmentId);
+  const query = shipmentId.match(/^[0-9a-fA-F]{24}$/)
+    ? { _id: shipmentId }
+    : { trackingNumber: shipmentId.toUpperCase() };
+
+  const shipment = await Shipment.findOne(query);
   if (!shipment) throw new ApiError(404, "Shipment not found");
 
   if (shipment.customer.toString() !== userId.toString())
     throw new ApiError(403, "You are not allowed to view these offers");
 
-  const offers = await Offer.find({ shipment: shipmentId })
+  const offers = await Offer.find({ shipment: shipment._id })
     .populate("offerer", "fullName profileImage")
     .sort({ price: 1 });
 
