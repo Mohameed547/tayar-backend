@@ -242,6 +242,7 @@ const getMyAssignedShipments = async (userId, role, { status, page, limit } = {}
     const [shipments, total] = await Promise.all([
         Shipment.find(query)
             .populate("captain", "fullName phone")
+            .populate("customer", "fullName phone")
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(take),
