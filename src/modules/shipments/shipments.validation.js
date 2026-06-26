@@ -49,6 +49,11 @@ export const createShipmentSchema = Joi.object({
   notes: Joi.string().trim().max(500).optional().allow("").messages({
     "string.max": "validation.notes.max",
   }),
+
+  price: Joi.number().positive().optional().messages({
+    "number.base": "validation.price.number",
+    "number.positive": "validation.price.positive",
+  }),
 });
 
 export const updateShipmentStatusSchema = Joi.object({

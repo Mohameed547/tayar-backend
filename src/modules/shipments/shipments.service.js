@@ -8,19 +8,25 @@ import { SHIPMENT_STATUS } from "../../shared/constants/shipmentStatus.js";
 import User from "../../database/models/User.model.js";
 
 const geocodeAddress = async (address) => {
-  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`;
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`;
 
-  const res = await fetch(url, {
-    headers: { "User-Agent": "DeliverHub/1.0" },
-  });
+    const res = await fetch(url, {
+      headers: { "User-Agent": "DeliverHub/1.0" },
+    });
 
-  const data = await res.json();
+    const data = await res.json();
 
-  if (!data || data.length === 0) {
-    throw new ApiError(400, `Cannot geocode address: ${address}`);
+    if (!data || data.length === 0) {
+      console.warn(`Geocoding failed for: ${address}, using Cairo fallback coords.`);
+      return [31.2357, 30.0444];
+    }
+
+    return [parseFloat(data[0].lon), parseFloat(data[0].lat)];
+  } catch (err) {
+    console.error("Geocoding fetch error, using Cairo fallback coords:", err);
+    return [31.2357, 30.0444];
   }
-
-  return [parseFloat(data[0].lon), parseFloat(data[0].lat)];
 };
 
 const calcDistanceKm = ([lng1, lat1], [lng2, lat2]) => {
@@ -60,6 +66,7 @@ const createShipment = async (customerId, body) => {
     deliverySpeed,
     scheduledDate,
     notes,
+    price,
   } = body;
 
   const [pickupCoords, deliveryCoords] = await Promise.all([
@@ -86,8 +93,8 @@ const createShipment = async (customerId, body) => {
     scheduledDate: scheduledDate ?? null,
     notes: notes ?? null,
     distanceKm: Math.round(distanceKm * 10) / 10,
-    estimatedPriceMin,
-    estimatedPriceMax,
+    estimatedPriceMin: price ? Math.round(price * 0.9) : estimatedPriceMin,
+    estimatedPriceMax: price ? Math.round(price * 1.1) : estimatedPriceMax,
   });
 
   return shipment;
@@ -106,6 +113,7 @@ const getShipmentsByCustomer = async (
   const [shipments, total] = await Promise.all([
     Shipment.find(query)
       .populate("captain", "fullName phone profileImage")
+      .populate("selectedOfferId")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(take),
