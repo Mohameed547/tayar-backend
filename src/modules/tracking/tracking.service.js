@@ -313,8 +313,7 @@ const recordLocationPing = async (shipmentId, captainId, { lng, lat }) => {
   if (!tracking)
     throw new ApiError(404, "No tracking record found for this shipment");
 
-  const driverDoc = await Driver.findOne({ user: captainId }).select("_id");
-  if (!driverDoc || String(tracking.captain) !== String(driverDoc._id)) {
+  if (String(tracking.captain) !== String(captainId)) {
     throw new ApiError(
       403,
       "You are not the assigned captain for this shipment",
