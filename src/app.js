@@ -5,6 +5,10 @@ import errorHandler from "./shared/middleware/errorHandler.js";
 
 const app = express();
 
+app.use((req, res, next) => {
+  res.setHeader('bypass-tunnel-reminder', 'true');
+  next();
+});
 // CORS
 app.use(
     cors({

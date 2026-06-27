@@ -1,549 +1,1457 @@
 {
-  "info": {
-    "_postman_id": "0a4d0e9c-1b6c-4f1b-9a8f-deliveryhub-api",
-    "name": "DeliveryHub Backend API",
-    "description": "Import this collection into Postman. Set baseUrl if your server uses another port. Login saves token and refreshToken automatically.",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-  },
-  "auth": {
-    "type": "bearer",
-    "bearer": [
-      {
-        "key": "token",
-        "value": "{{token}}",
-        "type": "string"
-      }
-    ]
-  },
-  "variable": [
-    {
-      "key": "baseUrl",
-      "value": "http://localhost:4000/api",
-      "type": "string"
-    },
-    {
-      "key": "token",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "refreshToken",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "shipmentId",
-      "value": "676f1234567890abcdef1234",
-      "type": "string"
-    },
-    {
-      "key": "offerId",
-      "value": "676f1234567890abcdef1235",
-      "type": "string"
-    },
-    {
-      "key": "notificationId",
-      "value": "676f1234567890abcdef1236",
-      "type": "string"
-    },
-    {
-      "key": "revieweeId",
-      "value": "676f1234567890abcdef1237",
-      "type": "string"
-    },
-    {
-      "key": "ticketId",
-      "value": "676f1234567890abcdef1238",
-      "type": "string"
-    }
-  ],
-  "item": [
-    {
-      "name": "Auth",
-      "item": [
-        {
-          "name": "Register Customer",
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"fullName\": \"Test Customer\",\n  \"email\": \"customer@example.com\",\n  \"phone\": \"01012345678\",\n  \"password\": \"Password123\",\n  \"role\": \"customer\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/auth/register"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const json = pm.response.json();",
-                  "if (json.data && json.data.tokens) {",
-                  "  pm.collectionVariables.set('token', json.data.tokens.accessToken);",
-                  "  pm.collectionVariables.set('refreshToken', json.data.tokens.refreshToken);",
-                  "}"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Register Driver",
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"fullName\": \"Test Driver\",\n  \"email\": \"driver@example.com\",\n  \"phone\": \"01012345679\",\n  \"password\": \"Password123\",\n  \"role\": \"driver\",\n  \"vehicleType\": \"car\",\n  \"plateNumber\": \"ABC-123\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/auth/register"
-          }
-        },
-        {
-          "name": "Register Office",
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"fullName\": \"Office Owner\",\n  \"email\": \"office@example.com\",\n  \"phone\": \"01012345670\",\n  \"password\": \"Password123\",\n  \"role\": \"office\",\n  \"businessName\": \"Fast Office\",\n  \"licenseNumber\": \"LIC-12345\",\n  \"officeAddress\": \"Nasr City, Cairo, Egypt\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/auth/register"
-          }
-        },
-        {
-          "name": "Login",
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"emailOrPhone\": \"customer@example.com\",\n  \"password\": \"Password123\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/auth/login"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const json = pm.response.json();",
-                  "if (json.data && json.data.tokens) {",
-                  "  pm.collectionVariables.set('token', json.data.tokens.accessToken);",
-                  "  pm.collectionVariables.set('refreshToken', json.data.tokens.refreshToken);",
-                  "}"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Refresh Token",
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/auth/refresh"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const json = pm.response.json();",
-                  "if (json.data && json.data.tokens) {",
-                  "  pm.collectionVariables.set('token', json.data.tokens.accessToken);",
-                  "  pm.collectionVariables.set('refreshToken', json.data.tokens.refreshToken);",
-                  "}"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Logout",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/auth/logout"
-          }
-        },
-        {
-          "name": "Resend OTP",
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"phone\": \"01012345678\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/auth/otp/resend"
-          }
-        },
-        {
-          "name": "Verify OTP",
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"phone\": \"01012345678\",\n  \"otp\": \"123456\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/auth/otp/verify"
-          }
-        },
-        {
-          "name": "Forgot Password",
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"customer@example.com\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/auth/forgot-password"
-          }
-        },
-        {
-          "name": "Reset Password",
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"token\": \"reset-token-from-log-or-email\",\n  \"newPassword\": \"NewPassword123\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/auth/reset-password"
-          }
-        },
-        {
-          "name": "Change Password",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"currentPassword\": \"Password123\",\n  \"newPassword\": \"NewPassword123\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/auth/change-password"
-          }
-        },
-        {
-          "name": "Auth Me",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/auth/me"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Users",
-      "item": [
-        {
-          "name": "Get Me",
-          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/users/me" }
-        },
-        {
-          "name": "Update Me",
-          "request": {
-            "method": "PATCH",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"fullName\": \"Updated Customer\",\n  \"phone\": \"01012345678\",\n  \"profileImage\": \"https://example.com/avatar.jpg\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/users/me"
-          }
-        },
-        {
-          "name": "Add Push Token",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"token\": \"expo-push-token-example-1234567890\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/users/push-token"
-          }
-        },
-        {
-          "name": "Remove Push Token",
-          "request": {
-            "method": "DELETE",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"token\": \"expo-push-token-example-1234567890\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/users/push-token"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Profile",
-      "item": [
-        {
-          "name": "Get Profile",
-          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/profile/getProfile" }
-        },
-        {
-          "name": "Update Profile",
-          "request": {
-            "method": "PATCH",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"fullName\": \"Updated Customer\",\n  \"phone\": \"01012345678\",\n  \"profileImage\": \"https://example.com/avatar.jpg\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/profile/updateProfile"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Shipments",
-      "item": [
-        {
-          "name": "Create Shipment",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"pickupAddress\": \"Nasr City, Cairo, Egypt\",\n  \"deliveryAddress\": \"Maadi, Cairo, Egypt\",\n  \"weight\": 5,\n  \"packageType\": \"medium_box\",\n  \"deliverySpeed\": \"standard\",\n  \"notes\": \"Handle with care\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/shipments"
-          }
-        },
-        {
-          "name": "Get My Shipments",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/shipments?status=pending_offers&page=1&limit=20"
-          }
-        },
-        {
-          "name": "Get Shipment By ID",
-          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/shipments/{{shipmentId}}" }
-        },
-        {
-          "name": "Cancel Shipment",
-          "request": { "method": "PATCH", "header": [], "url": "{{baseUrl}}/shipments/{{shipmentId}}/cancel" }
-        },
-        {
-          "name": "Admin Get All Shipments",
-          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/shipments/admin/all?status=pending_offers&page=1&limit=20" }
-        }
-      ]
-    },
-    {
-      "name": "Offers",
-      "item": [
-        {
-          "name": "Get Shipment Offers",
-          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/offers/shipment/{{shipmentId}}" }
-        },
-        {
-          "name": "Create Offer",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"shipmentId\": \"{{shipmentId}}\",\n  \"price\": 150,\n  \"estimatedDelivery\": \"2 hours\",\n  \"coverage\": \"Insured\",\n  \"description\": \"Fast delivery with insurance\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/offers/create"
-          }
-        },
-        {
-          "name": "Accept Offer",
-          "request": { "method": "PATCH", "header": [], "url": "{{baseUrl}}/offers/{{offerId}}/accept" }
-        }
-      ]
-    },
-    {
-      "name": "Wallet",
-      "item": [
-        {
-          "name": "Get Wallet",
-          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/wallet" }
-        },
-        {
-          "name": "Top Up",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"amount\": 500\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/wallet/topup"
-          }
-        },
-        {
-          "name": "Withdraw",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"amount\": 100\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/wallet/withdraw"
-          }
-        },
-        {
-          "name": "Get Transactions",
-          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/wallet/transactions?page=1&limit=20" }
-        }
-      ]
-    },
-    {
-      "name": "Tracking",
-      "item": [
-        {
-          "name": "Get Tracking",
-          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/tracking/{{shipmentId}}" }
-        },
-        {
-          "name": "Post Location Ping",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"lng\": 31.2357,\n  \"lat\": 30.0444\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/tracking/{{shipmentId}}/location"
-          }
-        },
-        {
-          "name": "Post Status Update",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"picked_up\",\n  \"note\": \"Package picked up\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/tracking/{{shipmentId}}/status"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Notifications",
-      "item": [
-        {
-          "name": "List Notifications",
-          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/notifications?status=all&page=1&limit=20" }
-        },
-        {
-          "name": "Unread Count",
-          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/notifications/unread-count" }
-        },
-        {
-          "name": "Mark All Read",
-          "request": { "method": "PATCH", "header": [], "url": "{{baseUrl}}/notifications/read-all" }
-        },
-        {
-          "name": "Mark Notification Read",
-          "request": { "method": "PATCH", "header": [], "url": "{{baseUrl}}/notifications/{{notificationId}}/read" }
-        }
-      ]
-    },
-    {
-      "name": "Support",
-      "item": [
-        {
-          "name": "Create Ticket",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"subject\": \"Shipment delayed\",\n  \"category\": \"delay\",\n  \"message\": \"My shipment has not arrived yet.\",\n  \"relatedShipment\": \"{{shipmentId}}\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/support"
-          }
-        },
-        {
-          "name": "Get My Tickets",
-          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/support" }
-        },
-        {
-          "name": "Get Ticket By ID",
-          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/support/{{ticketId}}" }
-        }
-      ]
-    },
-    {
-      "name": "Reviews",
-      "item": [
-        {
-          "name": "Get My Reviews",
-          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/reviews/getReview" }
-        },
-        {
-          "name": "Create Review",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"shipmentId\": \"{{shipmentId}}\",\n  \"revieweeType\": \"Driver\",\n  \"revieweeId\": \"{{revieweeId}}\",\n  \"rating\": 5,\n  \"comment\": \"Great delivery service\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/reviews/addReview"
-          }
-        }
-      ]
-    }
-  ]
+	"info": {
+		"_postman_id": "0a4d0e9c-1b6c-4f1b-9a8f-deliveryhub-api",
+		"name": "DeliveryHub Backend API",
+		"description": "Import this collection into Postman. Set baseUrl if your server uses another port. Login saves token and refreshToken automatically.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:4000/api",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refreshToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "shipmentId",
+			"value": "676f1234567890abcdef1234",
+			"type": "string"
+		},
+		{
+			"key": "offerId",
+			"value": "676f1234567890abcdef1235",
+			"type": "string"
+		},
+		{
+			"key": "notificationId",
+			"value": "676f1234567890abcdef1236",
+			"type": "string"
+		},
+		{
+			"key": "revieweeId",
+			"value": "676f1234567890abcdef1237",
+			"type": "string"
+		},
+		{
+			"key": "ticketId",
+			"value": "676f1234567890abcdef1238",
+			"type": "string"
+		},
+		{
+			"key": "captainId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "captainUserId",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Register Customer",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fullName\": \"Test Customer\",\n  \"email\": \"customer@example.com\",\n  \"phone\": \"01012345678\",\n  \"password\": \"Password123\",\n  \"role\": \"customer\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/auth/register"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const json = pm.response.json();",
+									"if (json.data && json.data.tokens) {",
+									"  pm.collectionVariables.set('token', json.data.tokens.accessToken);",
+									"  pm.collectionVariables.set('refreshToken', json.data.tokens.refreshToken);",
+									"}"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Register Driver",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fullName\": \"Test Driver\",\n  \"email\": \"driver@example.com\",\n  \"phone\": \"01012345679\",\n  \"password\": \"Password123\",\n  \"role\": \"driver\",\n  \"vehicleType\": \"car\",\n  \"plateNumber\": \"ABC-123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/auth/register"
+					}
+				},
+				{
+					"name": "Register Office",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fullName\": \"Office Owner\",\n  \"email\": \"office@example.com\",\n  \"phone\": \"01012345670\",\n  \"password\": \"Password123\",\n  \"role\": \"office\",\n  \"businessName\": \"Fast Office\",\n  \"licenseNumber\": \"LIC-12345\",\n  \"officeAddress\": \"Nasr City, Cairo, Egypt\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/auth/register"
+					}
+				},
+				{
+					"name": "Login",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"emailOrPhone\": \"customer@example.com\",\n  \"password\": \"Password123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/auth/login"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const json = pm.response.json();",
+									"if (json.data && json.data.tokens) {",
+									"  pm.collectionVariables.set('token', json.data.tokens.accessToken);",
+									"  pm.collectionVariables.set('refreshToken', json.data.tokens.refreshToken);",
+									"}"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Refresh Token",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/auth/refresh"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const json = pm.response.json();",
+									"if (json.data && json.data.tokens) {",
+									"  pm.collectionVariables.set('token', json.data.tokens.accessToken);",
+									"  pm.collectionVariables.set('refreshToken', json.data.tokens.refreshToken);",
+									"}"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/auth/logout"
+					}
+				},
+				{
+					"name": "Resend OTP",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"01012345678\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/auth/otp/resend"
+					}
+				},
+				{
+					"name": "Verify OTP",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"01012345678\",\n  \"otp\": \"123456\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/auth/otp/verify"
+					}
+				},
+				{
+					"name": "Forgot Password",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"customer@example.com\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/auth/forgot-password"
+					}
+				},
+				{
+					"name": "Reset Password",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"token\": \"reset-token-from-log-or-email\",\n  \"newPassword\": \"NewPassword123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/auth/reset-password"
+					}
+				},
+				{
+					"name": "Change Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"currentPassword\": \"Password123\",\n  \"newPassword\": \"NewPassword123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/auth/change-password"
+					}
+				},
+				{
+					"name": "Auth Me",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/auth/me"
+					}
+				}
+			]
+		},
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "Get Me",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/users/me"
+					}
+				},
+				{
+					"name": "Update Me",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fullName\": \"Updated Customer\",\n  \"phone\": \"01012345678\",\n  \"profileImage\": \"https://example.com/avatar.jpg\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/users/me"
+					}
+				},
+				{
+					"name": "Add Push Token",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"token\": \"expo-push-token-example-1234567890\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/users/push-token"
+					}
+				},
+				{
+					"name": "Remove Push Token",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"token\": \"expo-push-token-example-1234567890\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/users/push-token"
+					}
+				}
+			]
+		},
+		{
+			"name": "Profile",
+			"item": [
+				{
+					"name": "Get Profile",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/profile/getProfile"
+					}
+				},
+				{
+					"name": "Update Profile",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fullName\": \"Updated Customer\",\n  \"phone\": \"01012345678\",\n  \"profileImage\": \"https://example.com/avatar.jpg\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/profile/updateProfile"
+					}
+				},
+				{
+					"name": "Get My Profile (REST alias)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/profile"
+					}
+				},
+				{
+					"name": "Update My Profile (REST alias)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/profile",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fullName\": \"Updated Name\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					}
+				},
+				{
+					"name": "Change Password",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/profile/password",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"currentPassword\": \"OldPass123\",\n  \"newPassword\": \"NewPass123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					}
+				},
+				{
+					"name": "Update Avatar",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/profile/avatar",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"profileImage\": \"https://example.com/avatar.jpg\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Shipments",
+			"item": [
+				{
+					"name": "Create Shipment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"pickupAddress\": \"Nasr City, Cairo, Egypt\",\n  \"deliveryAddress\": \"Maadi, Cairo, Egypt\",\n  \"weight\": 5,\n  \"packageType\": \"medium_box\",\n  \"deliverySpeed\": \"standard\",\n  \"notes\": \"Handle with care\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/shipments"
+					}
+				},
+				{
+					"name": "Get My Shipments",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/shipments?status=pending_offers&page=1&limit=20"
+					}
+				},
+				{
+					"name": "Get Shipment By ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/shipments/{{shipmentId}}"
+					}
+				},
+				{
+					"name": "Cancel Shipment",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"url": "{{baseUrl}}/shipments/{{shipmentId}}/cancel"
+					}
+				},
+				{
+					"name": "Admin Get All Shipments",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/shipments/admin/all?status=pending_offers&page=1&limit=20"
+					}
+				},
+				{
+					"name": "Get Available Shipments (Driver/Office)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/shipments/available"
+					}
+				},
+				{
+					"name": "Get My Assigned Shipments (Driver/Office)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/shipments/mine/assigned?status=captain_assignment,picked_up,in_transit,out_for_delivery"
+					}
+				}
+			]
+		},
+		{
+			"name": "Offers",
+			"item": [
+				{
+					"name": "Get Shipment Offers",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/offers/shipment/{{shipmentId}}"
+					}
+				},
+				{
+					"name": "Create Offer",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"shipmentId\": \"{{shipmentId}}\",\n  \"price\": 150,\n  \"estimatedDelivery\": \"2 hours\",\n  \"coverage\": \"Insured\",\n  \"description\": \"Fast delivery with insurance\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/offers/create"
+					}
+				},
+				{
+					"name": "Accept Offer",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"url": "{{baseUrl}}/offers/{{offerId}}/accept"
+					}
+				},
+				{
+					"name": "Get My Offers",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/offers/mine"
+					}
+				}
+			]
+		},
+		{
+			"name": "Wallet",
+			"item": [
+				{
+					"name": "Get Wallet",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/wallet"
+					}
+				},
+				{
+					"name": "Top Up",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"amount\": 500\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/wallet/topup"
+					}
+				},
+				{
+					"name": "Withdraw",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"amount\": 100\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/wallet/withdraw"
+					}
+				},
+				{
+					"name": "Get Transactions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/wallet/transactions?page=1&limit=20"
+					}
+				},
+				{
+					"name": "Deposit (alias of Top Up)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/wallet/deposit",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"amount\": 500\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					}
+				},
+				{
+					"name": "Wallet History (alias of Transactions)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/wallet/history"
+					}
+				}
+			]
+		},
+		{
+			"name": "Tracking",
+			"item": [
+				{
+					"name": "Get Tracking",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/tracking/{{shipmentId}}"
+					}
+				},
+				{
+					"name": "Post Location Ping",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"lng\": 31.2357,\n  \"lat\": 30.0444\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/tracking/{{shipmentId}}/location"
+					}
+				},
+				{
+					"name": "Post Status Update",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"picked_up\",\n  \"note\": \"Package picked up\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/tracking/{{shipmentId}}/status"
+					}
+				}
+			]
+		},
+		{
+			"name": "Notifications",
+			"item": [
+				{
+					"name": "List Notifications",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/notifications?status=all&page=1&limit=20"
+					}
+				},
+				{
+					"name": "Unread Count",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/notifications/unread-count"
+					}
+				},
+				{
+					"name": "Mark All Read",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"url": "{{baseUrl}}/notifications/read-all"
+					}
+				},
+				{
+					"name": "Mark Notification Read",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"url": "{{baseUrl}}/notifications/{{notificationId}}/read"
+					}
+				}
+			]
+		},
+		{
+			"name": "Support",
+			"item": [
+				{
+					"name": "Create Ticket",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"subject\": \"Shipment delayed\",\n  \"category\": \"delay\",\n  \"message\": \"My shipment has not arrived yet.\",\n  \"relatedShipment\": \"{{shipmentId}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/support"
+					}
+				},
+				{
+					"name": "Get My Tickets",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/support"
+					}
+				},
+				{
+					"name": "Get Ticket By ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/support/{{ticketId}}"
+					}
+				}
+			]
+		},
+		{
+			"name": "Reviews",
+			"item": [
+				{
+					"name": "Get My Reviews",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/reviews/getReview"
+					}
+				},
+				{
+					"name": "Create Review",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"shipmentId\": \"{{shipmentId}}\",\n  \"revieweeType\": \"Driver\",\n  \"revieweeId\": \"{{revieweeId}}\",\n  \"rating\": 5,\n  \"comment\": \"Great delivery service\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/reviews/addReview"
+					}
+				}
+			]
+		},
+		{
+			"name": "Office",
+			"item": [
+				{
+					"name": "Create Captain (Office)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/office/captains",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fullName\": \"Ahmed Captain\",\n  \"email\": \"captain.ahmed@example.com\",\n  \"phone\": \"01099912345\",\n  \"vehicleType\": \"motorcycle\",\n  \"plateNumber\": \"CAI-9921\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const json = pm.response.json();",
+									"if (json.data && json.data.captain) {",
+									"  pm.collectionVariables.set('captainId', json.data.captain.id);",
+									"}"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Get Office Captains",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/office/captains"
+					}
+				},
+				{
+					"name": "Get Office Captains (filter by status)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/office/captains?status=available"
+					}
+				},
+				{
+					"name": "Get Captain By Id",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/office/captains/{{captainId}}"
+					}
+				},
+				{
+					"name": "Update Captain",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/office/captains/{{captainId}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fullName\": \"Ahmed Updated\",\n  \"plateNumber\": \"CAI-1010\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					}
+				},
+				{
+					"name": "Update Captain Status",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/office/captains/{{captainId}}/status",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"online\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					}
+				},
+				{
+					"name": "Get Captain Tracking",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/office/captains/{{captainId}}/tracking"
+					}
+				},
+				{
+					"name": "Deactivate Captain",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/office/captains/{{captainId}}"
+					}
+				},
+				{
+					"name": "Get Office Dashboard",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/office/dashboard"
+					}
+				},
+				{
+					"name": "Get Captain Performance",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/office/captains/{{captainId}}/performance"
+					}
+				},
+				{
+					"name": "Get Captain Ratings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/office/captains/{{captainId}}/ratings"
+					}
+				},
+				{
+					"name": "Get Captain Orders",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/office/captains/{{captainId}}/orders"
+					}
+				},
+				{
+					"name": "Get Captain Deliveries",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/office/captains/{{captainId}}/deliveries"
+					}
+				},
+				{
+					"name": "Get Pending Shipment Offers",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/office/offers"
+					}
+				},
+				{
+					"name": "Get Assigned Shipment Offers",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/office/offers/assigned"
+					}
+				},
+				{
+					"name": "Assign Shipment To Captain",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/office/offers/{{shipmentId}}/assign/{{captainId}}"
+					}
+				},
+				{
+					"name": "Reassign Shipment To Captain",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/office/offers/{{shipmentId}}/reassign/{{captainId}}"
+					}
+				},
+				{
+					"name": "Reject Shipment Offer",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/office/offers/{{shipmentId}}/reject"
+					}
+				},
+				{
+					"name": "Get Office Earnings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/office/earnings"
+					}
+				},
+				{
+					"name": "Get Office Ratings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/office/ratings"
+					}
+				}
+			]
+		},
+		{
+			"name": "Earnings",
+			"item": [
+				{
+					"name": "Get Captain Earnings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/captain/earnings"
+					}
+				},
+				{
+					"name": "Get Office Earnings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/office/earnings"
+					}
+				}
+			]
+		},
+		{
+			"name": "Ratings",
+			"item": [
+				{
+					"name": "Get Captain Ratings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/captain/ratings"
+					}
+				},
+				{
+					"name": "Get Office Ratings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/office/ratings"
+					}
+				},
+				{
+					"name": "Submit Rating",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/ratings",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"shipmentId\": \"{{shipmentId}}\",\n  \"revieweeId\": \"{{captainId}}\",\n  \"revieweeType\": \"Driver\",\n  \"rating\": 5,\n  \"comment\": \"Great service\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Verification",
+			"item": [
+				{
+					"name": "Upload Verification Document",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/captain/verification/upload",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"documentType\": \"national_id\",\n  \"documentUrl\": \"https://example.com/docs/id.jpg\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					}
+				},
+				{
+					"name": "Get Verification Status",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/captain/verification/status"
+					}
+				},
+				{
+					"name": "Review Verification (Admin)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": "{{baseUrl}}/captain/verification/review",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"{{captainUserId}}\",\n  \"status\": \"approved\",\n  \"reviewNote\": \"Documents verified\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					}
+				}
+			]
+		}
+	]
 }

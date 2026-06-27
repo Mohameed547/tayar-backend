@@ -1,72 +1,131 @@
 import mongoose from "mongoose";
 
-export const TRANSACTION_TYPE = {
-  TOPUP: "topup",
-  PAYMENT: "payment",
-  CASHBACK: "cashback",
+const { Schema } = mongoose;
+
+export const USER_TYPE = {
+  CUSTOMER: "Customer",
+  DRIVER: "Driver",
+  OFFICE: "Office",
 };
 
-const transactionSchema = new mongoose.Schema(
-  {
-    type: {
-      type: String,
-      enum: Object.values(TRANSACTION_TYPE),
-      required: true,
-    },
-    amount: {
-      type: Number,
-      required: true,
-    },
-    description: {
-      type: String,
-      required: true,
-    },
-    reference: {
-      type: String,
-      default: null,
-    },
-  },
-  { timestamps: true },
-);
+export const WALLET_STATUS = {
+  ACTIVE: "Active",
+  LOCKED: "Locked",
+};
 
-const walletSchema = new mongoose.Schema(
+export const TRANSACTION_TYPE = {
+  DEBIT: "Debit",
+  CREDIT: "Credit",
+};
+
+export const TRANSACTION_PURPOSE = {
+  TOPUP: "Topup",
+  PAYMENT: "Payment",
+  DELIVERY_FEE: "DeliveryFee",
+  WITHDRAWAL: "Withdrawal",
+};
+
+export const GATEWAY = {
+  INSTAPAY: "Instapay",
+  APPLE_PAY: "ApplePay",
+  VODAFONE_CASH: "VodafoneCash",
+  ORANGE_CASH: "OrangeCash",
+  ETISALAT_CASH: "EtisalatCash",
+  INTERNAL: "Internal",
+};
+
+export const TRANSACTION_STATUS = {
+  PENDING: "Pending",
+  COMPLETED: "Completed",
+  FAILED: "Failed",
+};
+
+const walletSchema = new Schema(
   {
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
+    userId: {
+      type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
       unique: true,
     },
-
-    walletId: {
+    userType: {
       type: String,
-      unique: true,
+      enum: Object.values(USER_TYPE),
+      required: true,
     },
-
     balance: {
       type: Number,
       default: 0,
       min: 0,
     },
-
-    cashbackEarned: {
-      type: Number,
-      default: 0,
+    currency: {
+      type: String,
+      default: "EGP",
     },
-
-    transactions: [transactionSchema],
+    status: {
+      type: String,
+      enum: Object.values(WALLET_STATUS),
+      default: WALLET_STATUS.ACTIVE,
+    },
   },
   { timestamps: true },
 );
 
-walletSchema.pre("save", async function (next) {
-  if (!this.walletId) {
-    const count = await mongoose.model("Wallet").countDocuments();
-    this.walletId = `SC-W-${String(count + 1).padStart(5, "0")}`;
-  }
-  next();
-});
+walletSchema.index({ userType: 1 });
 
-const Wallet = mongoose.model("Wallet", walletSchema);
+const transactionSchema = new Schema(
+  {
+    walletId: {
+      type: Schema.Types.ObjectId,
+      ref: "Wallet",
+      required: true,
+      index: true,
+    },
+    type: {
+      type: String,
+      enum: Object.values(TRANSACTION_TYPE),
+      required: true,
+    },
+    purpose: {
+      type: String,
+      enum: Object.values(TRANSACTION_PURPOSE),
+      required: true,
+    },
+    amount: {
+      type: Number,
+      required: true,
+      min: 0.01,
+    },
+    gateway: {
+      type: String,
+      enum: Object.values(GATEWAY),
+      default: GATEWAY.INTERNAL,
+    },
+    status: {
+      type: String,
+      enum: Object.values(TRANSACTION_STATUS),
+      default: TRANSACTION_STATUS.COMPLETED,
+    },
+    referenceId: {
+      type: String,
+      default: null,
+    },
+    metadata: {
+      type: Schema.Types.Mixed,
+      default: {},
+    },
+    balanceAfter: {
+      type: Number,
+      required: true,
+    },
+  },
+  { timestamps: true },
+);
+
+transactionSchema.index({ walletId: 1, createdAt: -1 });
+transactionSchema.index({ referenceId: 1 }, { sparse: true });
+
+export const Wallet = mongoose.model("Wallet", walletSchema);
+export const Transaction = mongoose.model("Transaction", transactionSchema);
 
 export default Wallet;
