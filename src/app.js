@@ -4,6 +4,11 @@ import errorHandler from "./shared/middleware/errorHandler.js";
 
 const app = express();
 
+app.use((req, res, next) => {
+  res.setHeader('bypass-tunnel-reminder', 'true');
+  next();
+});
+
 // Body parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
