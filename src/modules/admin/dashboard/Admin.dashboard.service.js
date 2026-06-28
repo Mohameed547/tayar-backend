@@ -1,16 +1,15 @@
 import Shipment from "../../../database/models/Shipment.model.js";
 import User from "../../../database/models/User.model.js";
-import Office from "../../../database/models/Office.js";
 import Escrow from "../../../database/models/Escrow.model.js";
 import Setting from "../../../database/models/Setting.model.js";
+import Support from "../../../database/models/Support.model.js";
 import { SHIPMENT_STATUS } from "../../../shared/constants/shipmentStatus.js";
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
 const startOfThisWeek = () => {
     const d = new Date();
-    const day = d.getDay(); // 0 = Sunday
-    d.setDate(d.getDate() - day);
+    d.setDate(d.getDate() - d.getDay());
     d.setHours(0, 0, 0, 0);
     return d;
 };
@@ -34,10 +33,6 @@ const startOfLastMonth = () => {
     return d;
 };
 
-/**
- * % change from previous value to current value.
- * Returns 0 when previous is 0 to avoid Infinity/NaN, and rounds to 1 decimal.
- */
 const percentTrend = (current, previous) => {
     if (!previous) return current > 0 ? 100 : 0;
     return Number((((current - previous) / previous) * 100).toFixed(1));
@@ -69,7 +64,8 @@ const getStatsCards = async () => {
         registeredUsers,
         usersThisWeek,
         usersLastWeek,
-        activeDrivers,
+        openDisputes,
+        urgentDisputes,
         commissionThisMonthAgg,
         commissionLastMonthAgg,
     ] = await Promise.all([
@@ -89,7 +85,11 @@ const getStatsCards = async () => {
             role: { $in: ["customer", "driver", "office"] },
             createdAt: { $gte: lastWeek, $lt: thisWeek },
         }),
-        User.countDocuments({ role: "driver", status: "active" }),
+        Support.countDocuments({ status: "sent" }),
+        Support.countDocuments({
+            status: "sent",
+            createdAt: { $lte: new Date(Date.now() - 24 * 36e5) },
+        }),
         Escrow.aggregate([
             { $match: { createdAt: { $gte: thisMonth } } },
             { $group: { _id: null, total: { $sum: "$commissionAmount" } } },
@@ -102,14 +102,18 @@ const getStatsCards = async () => {
 
     const monthlyRevenue = commissionThisMonthAgg[0]?.total ?? 0;
     const lastMonthRevenue = commissionLastMonthAgg[0]?.total ?? 0;
+    const disputeRate = totalOrders
+        ? Number(((openDisputes / totalOrders) * 100).toFixed(1))
+        : 0;
 
     return {
         totalOrders,
         totalOrdersTrend: percentTrend(ordersThisWeek, ordersLastWeek),
         registeredUsers,
         registeredUsersTrend: percentTrend(usersThisWeek, usersLastWeek),
-        activeDrivers,
-        driversOnline: activeDrivers,
+        openDisputes,
+        urgentDisputes,
+        disputeRate,
         monthlyRevenue,
         revenueTrend: percentTrend(monthlyRevenue, lastMonthRevenue),
     };
@@ -144,6 +148,7 @@ const getRecentOrders = async () => {
     })
         .select("shipment")
         .lean();
+
     const disputedShipmentIds = new Set(
         disputedEscrows.map((e) => e.shipment.toString()),
     );
@@ -171,14 +176,9 @@ const getRevenueSources = async () => {
 
     const commission = commissionAgg[0]?.total ?? 0;
     const subscriptionFee = settingsDoc?.subscriptionFee ?? 49;
-
-    // No subscription/featured tracking fields exist on Office yet, so
-    // subscriptions revenue is approximated as all active offices paying the
-    // standard subscription fee. Featured revenue has no data source yet.
     const subscriptions = activeOfficeCount * subscriptionFee;
     const featured = 0;
-
-    const total = commission + subscriptions + featured || 1; // avoid /0
+    const total = commission + subscriptions + featured || 1;
 
     const sources = [
         { label: "Commission", amount: commission, color: "#3b82f6" },
@@ -210,8 +210,6 @@ const ESCROW_COLOR_MAP = {
 };
 
 const getEscrowStatuses = async () => {
-    // Real data straight from the Escrow collection — same source the
-    // admin escrow.service.js stats use (sum of `amount` grouped by status).
     const agg = await Escrow.aggregate([
         { $group: { _id: "$status", total: { $sum: "$amount" } } },
     ]);
@@ -219,9 +217,6 @@ const getEscrowStatuses = async () => {
     const byStatus = Object.fromEntries(agg.map((a) => [a._id, a.total]));
     const grandTotal = agg.reduce((sum, a) => sum + a.total, 0) || 1;
 
-    // Always return all known statuses (held/released/disputed/refunded),
-    // defaulting missing ones to 0, so the dashboard UI always has rows to
-    // render instead of an empty section when there's no escrow data yet.
     return Object.entries(ESCROW_LABEL_MAP).map(([key, label]) => ({
         label,
         amount: byStatus[key] ?? 0,
@@ -248,6 +243,7 @@ const getRecentUsers = async () => {
         { $match: { customer: { $in: userIds } } },
         { $group: { _id: "$customer", count: { $sum: 1 } } },
     ]);
+
     const ordersByUser = Object.fromEntries(
         orderCounts.map((o) => [o._id.toString(), o.count]),
     );

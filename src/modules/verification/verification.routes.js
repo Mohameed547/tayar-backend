@@ -1,10 +1,18 @@
 import { Router } from "express";
-import { uploadDocument, getStatus, reviewVerification } from "./verification.controller.js";
+import {
+    uploadDocument,
+    getStatus,
+    getAllVerifications,
+    reviewVerification,
+} from "./verification.controller.js";
 import { authenticate } from "../../shared/middleware/authenticate.js";
 import { authorize } from "../../shared/middleware/authorize.js";
 import { validate } from "../../shared/middleware/validate.js";
 import { ROLES } from "../../shared/constants/roles.js";
-import { uploadDocumentSchema, reviewVerificationSchema } from "./verification.validation.js";
+import {
+    uploadDocumentSchema,
+    reviewVerificationSchema,
+} from "./verification.validation.js";
 
 const router = Router();
 
@@ -21,6 +29,14 @@ router.get(
     authenticate,
     authorize(ROLES.CAPTAIN, ROLES.OFFICE),
     getStatus,
+);
+
+// ?status=all|pending|approved|rejected (default: all)
+router.get(
+    "/captain/verification/all",
+    authenticate,
+    authorize(ROLES.ADMIN),
+    getAllVerifications,
 );
 
 router.patch(

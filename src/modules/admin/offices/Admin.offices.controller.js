@@ -16,6 +16,15 @@ export const getOffices = async (req, res, next) => {
     }
 };
 
+export const getStats = async (req, res, next) => {
+    try {
+        const stats = await adminOfficesService.getStats();
+        return res.status(200).json(ApiResponse.success(stats));
+    } catch (err) {
+        next(err);
+    }
+};
+
 export const getOfficeById = async (req, res, next) => {
     try {
         const office = await adminOfficesService.getOfficeById(req.params.id);
