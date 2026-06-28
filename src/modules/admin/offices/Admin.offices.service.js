@@ -97,6 +97,12 @@ const buildOfficeMetricsMap = async (officeIds) => {
     return result;
 };
 
+/**
+ * getOffices: جلب جدول المكاتب بس (مفلتر/مبحوث/مرقّم).
+ * مبقتش بتحسب stats هنا — الـ stats بقت endpoint مستقل (getStats)
+ * عشان الفلترة والبحث يفضلوا سريعين وما يعيدوا حساب أرقام عامة
+ * مفيهاش علاقة بالفلتر نفسه.
+ */
 const getOffices = async ({ search, status, page = 1, limit = 20 }) => {
     const pageNum = Math.max(1, parseInt(page));
     const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
@@ -125,7 +131,6 @@ const getOffices = async ({ search, status, page = 1, limit = 20 }) => {
     if (userIds.length === 0) {
         return {
             offices: [],
-            stats: await getStats(),
             pagination: { page: pageNum, limit: limitNum, total: 0, pages: 0 },
         };
     }
@@ -142,8 +147,6 @@ const getOffices = async ({ search, status, page = 1, limit = 20 }) => {
     const officeIds = offices.map((o) => o._id);
     const metricsByOffice = await buildOfficeMetricsMap(officeIds);
 
-    const stats = await getStats();
-
     return {
         offices: offices.map((o) => {
             const user = usersMap[o.user.toString()];
@@ -153,7 +156,6 @@ const getOffices = async ({ search, status, page = 1, limit = 20 }) => {
             };
             return formatOffice(o, user, metrics.orders, metrics.rating);
         }),
-        stats,
         pagination: {
             page: pageNum,
             limit: limitNum,
@@ -163,6 +165,11 @@ const getOffices = async ({ search, status, page = 1, limit = 20 }) => {
     };
 };
 
+/**
+ * getStats: الإحصائيات العامة بس (Total, Active, Suspended, Avg rating).
+ * مستقلة عن أي فلتر/بحث في الجدول — بتتحسب لوحدها ومفيش لازمة تتكرر
+ * كل ما المستخدم يغيّر فلتر الجدول.
+ */
 const getStats = async () => {
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
@@ -234,4 +241,4 @@ const updateOfficeStatus = async (id, status) => {
     return { id: office._id, status: user.status };
 };
 
-export default { getOffices, getOfficeById, updateOfficeStatus };
+export default { getOffices, getStats, getOfficeById, updateOfficeStatus };
