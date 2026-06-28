@@ -8,7 +8,7 @@ let io;
 export const initSocket = (httpServer) => {
   io = new Server(httpServer, {
     cors: {
-      origin: ENV.CLIENT_ORIGIN,
+      origin: ["http://localhost:3000", "http://localhost:3001", ENV.CLIENT_ORIGIN].filter(Boolean),
       methods: ["GET", "POST"],
     },
   });

@@ -5,6 +5,7 @@ import Office from "../../database/models/Office.js";
 import Shipment from "../../database/models/Shipment.model.js";
 import Tracking from "../../database/models/Tracking.model.js";
 import Review from "../../database/models/Review.model.js";
+import { Wallet, Transaction } from "../../database/models/Wallet.model.js";
 import { SHIPMENT_STATUS } from "../../shared/constants/shipmentStatus.js";
 import ApiError from "../../shared/utils/ApiError.js";
 import { getPagination } from "../../shared/utils/pagination.js";
@@ -190,17 +191,13 @@ const getCaptainPerformance = async (officeUserId, captainId) => {
     const { driver } = await ensureOwnedCaptain(officeUserId, captainId);
     const userId = driver.user._id;
 
-    const [completed, active, cancelled, earningsAgg] = await Promise.all([
+    const [completed, active, cancelled] = await Promise.all([
         Shipment.countDocuments({ captain: userId, status: SHIPMENT_STATUS.DELIVERED }),
         Shipment.countDocuments({
             captain: userId,
             status: { $in: [SHIPMENT_STATUS.CAPTAIN_ASSIGNMENT, SHIPMENT_STATUS.PICKED_UP, SHIPMENT_STATUS.IN_TRANSIT, SHIPMENT_STATUS.OUT_FOR_DELIVERY] },
         }),
         Shipment.countDocuments({ captain: userId, status: SHIPMENT_STATUS.CANCELLED }),
-        Shipment.aggregate([
-            { $match: { captain: userId, status: SHIPMENT_STATUS.DELIVERED, estimatedPriceMax: { $ne: null } } },
-            { $group: { _id: null, total: { $sum: "$estimatedPriceMax" } } },
-        ]),
     ]);
 
     const ratingAgg = await Review.aggregate([
@@ -208,11 +205,38 @@ const getCaptainPerformance = async (officeUserId, captainId) => {
         { $group: { _id: null, average: { $avg: "$rating" }, count: { $sum: 1 } } },
     ]);
 
+    // Calculate real earnings from completed wallet transactions
+    let totalEarnings = 0;
+    const wallet = await Wallet.findOne({ userId });
+    if (wallet) {
+        const txAgg = await Transaction.aggregate([
+            {
+                $match: {
+                    walletId: wallet._id,
+                    type: "Credit",
+                    purpose: "Earning",
+                    status: "Completed"
+                }
+            },
+            { $group: { _id: null, total: { $sum: "$amount" } } }
+        ]);
+        totalEarnings = txAgg[0]?.total ?? 0;
+    }
+
+    // Fallback to delivered shipments price if no transactions exist yet
+    if (totalEarnings === 0 && completed > 0) {
+        const shipmentPriceAgg = await Shipment.aggregate([
+            { $match: { captain: userId, status: SHIPMENT_STATUS.DELIVERED } },
+            { $group: { _id: null, total: { $sum: { $ifNull: ["$price", "$estimatedPriceMax"] } } } }
+        ]);
+        totalEarnings = shipmentPriceAgg[0]?.total ?? 0;
+    }
+
     return {
         completedDeliveries: completed,
         activeDeliveries: active,
         cancelledDeliveries: cancelled,
-        totalEarnings: earningsAgg[0]?.total ?? 0,
+        totalEarnings,
         averageRating: ratingAgg[0]?.average ? Number(ratingAgg[0].average.toFixed(2)) : null,
         ratingsCount: ratingAgg[0]?.count ?? 0,
     };

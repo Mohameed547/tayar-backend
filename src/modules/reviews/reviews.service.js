@@ -33,7 +33,7 @@ const createReview = async (userId, reviewData) => {
 
 const getMyReviews = async (userId) => {
   const reviews = await Review.find({ reviewer: userId })
-    .populate("shipment", "shipmentId status")
+    .populate("shipment", "trackingNumber status")
     .populate("reviewee", "fullName profileImage")
     .sort({ createdAt: -1 });
 
@@ -45,18 +45,49 @@ const getMyReviews = async (userId) => {
   const deliveredShipments = await Shipment.find({
     customer: userId,
     status: "delivered",
-  }).select("_id");
+  })
+    .populate("captain", "fullName profileImage")
+    .populate({
+      path: "assignedOffice",
+      populate: { path: "user", select: "fullName profileImage" }
+    })
+    .select("_id trackingNumber captain assignedOffice updatedAt");
 
-  const reviewedShipmentIds = reviews.map((r) => r.shipment._id.toString());
+  const reviewedShipmentIds = reviews.map((r) => r.shipment ? r.shipment._id.toString() : "");
 
-  const pendingReviews = deliveredShipments.filter(
-    (s) => !reviewedShipmentIds.includes(s._id.toString()),
-  ).length;
+  const pendingReviewsList = deliveredShipments
+    .filter((s) => !reviewedShipmentIds.includes(s._id.toString()))
+    .map((s) => {
+      let revieweeId = null;
+      let revieweeType = "Driver";
+      let revieweeName = "";
+
+      if (s.assignedOffice) {
+        revieweeId = s.assignedOffice.user?._id || s.assignedOffice.user;
+        revieweeType = "Office";
+        revieweeName = s.assignedOffice.businessName || (s.assignedOffice.user?.fullName || "Office");
+      } else if (s.captain) {
+        revieweeId = s.captain._id;
+        revieweeType = "Driver";
+        revieweeName = s.captain.fullName || "Driver";
+      }
+
+      return {
+        _id: s._id,
+        trackingNumber: s.trackingNumber,
+        revieweeId,
+        revieweeType,
+        revieweeName,
+        updatedAt: s.updatedAt,
+      };
+    })
+    .filter((s) => s.revieweeId); // Only allow reviewing if there is a driver or office assigned
 
   return {
     averageRating: Math.round(averageRating * 10) / 10,
     totalReviews: reviews.length,
-    pendingReviews,
+    pendingReviews: pendingReviewsList.length,
+    pendingReviewsList,
     reviews,
   };
 };
