@@ -6,6 +6,7 @@ import ApiError from "../../shared/utils/ApiError.js";
 import { getPagination } from "../../shared/utils/pagination.js";
 import { SHIPMENT_STATUS } from "../../shared/constants/shipmentStatus.js";
 import User from "../../database/models/User.model.js";
+import walletService from "../wallet/wallet.service.js";
 
 const geocodeAddress = async (address) => {
   try {
@@ -80,6 +81,12 @@ const createShipment = async (customerId, body) => {
     weight,
     deliverySpeed,
   );
+
+  const cost = price || estimatedPriceMin || 0;
+  const wallet = await walletService.getWalletBalance(customerId, "customer");
+  if (wallet.balance < cost) {
+    throw new ApiError(400, "Insufficient wallet balance to cover the shipment cost. Please top up your wallet.");
+  }
 
   const shipment = await Shipment.create({
     customer: customerId,
@@ -175,6 +182,11 @@ const cancelShipment = async (id, customerId) => {
 
   shipment.status = "cancelled";
   await shipment.save();
+
+  const walletService = (await import("../wallet/wallet.service.js")).default;
+  await walletService.refundFunds(id).catch(err => {
+    console.error("Failed to refund escrow funds on customer cancellation:", err);
+  });
 
   return shipment;
 };
