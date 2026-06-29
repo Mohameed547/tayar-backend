@@ -10,5 +10,6 @@ router.use(authorize("admin"));
 
 router.get("/", disputesController.getDisputes);
 router.patch("/:id/resolve", disputesController.resolveDispute);
+router.post("/:id/messages", disputesController.addAdminTicketMessage);
 
 export default router;

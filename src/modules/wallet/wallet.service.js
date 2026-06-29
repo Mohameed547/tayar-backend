@@ -198,7 +198,27 @@ const handleTopUp = async (userId, role, { amount, gateway, referenceId, metadat
         const wallet = await getOrCreateWallet(userId, role, session);
         assertWalletIsActive(wallet);
 
-        const gatewayResult = await chargeGateway(gateway, amount, { userId, metadata });
+        let gatewayResult;
+        if (process.env.MOCK_PAYMENT === "true") {
+            const mockRef = `SIM-${gateway}-${Date.now()}`;
+            gatewayResult = {
+                success: true,
+                providerReference: mockRef,
+                redirectUrl: "/wallet?status=success",
+            };
+            
+            // Simulating successful gateway callback
+            setTimeout(async () => {
+                try {
+                    console.log(`[SIMULATION] Triggering confirmTopUp for reference ${mockRef} with amount ${amount}`);
+                    await confirmTopUp(mockRef, amount);
+                } catch (simErr) {
+                    console.error("[SIMULATION] Failed to confirm mock topup:", simErr.message);
+                }
+            }, 1000);
+        } else {
+            gatewayResult = await chargeGateway(gateway, amount, { userId, metadata });
+        }
 
         // المعاملة تنشأ PENDING ولن يتم تزويد الرصيد هنا بل في الـ Webhook
         const [transaction] = await Transaction.create(
@@ -235,8 +255,8 @@ const confirmTopUp = async (orderId, amount) => {
         const wallet = await Wallet.findById(transaction.walletId).session(session);
         if (!wallet) return null;
 
-        const commission = amount * 0.01;
-        const netAmount = amount - commission;
+        const commission = 0;
+        const netAmount = amount;
 
         wallet.balance += netAmount;
         await wallet.save({ session });
@@ -453,8 +473,13 @@ const releaseFunds = async (shipmentId) => {
         const netAmount = escrow.netAmount; // price - platform fee
 
         if (shipment.assignedOffice) {
-            officeShare = Math.round(escrow.amount * 0.1); // Office gets 10% of total
-            captainShare = netAmount - officeShare;
+            if (shipment.captainPrice !== undefined && shipment.captainPrice !== null) {
+                captainShare = Math.min(netAmount, shipment.captainPrice);
+                officeShare = Math.max(0, netAmount - captainShare);
+            } else {
+                officeShare = Math.round(escrow.amount * 0.1); // Office gets 10% of total
+                captainShare = netAmount - officeShare;
+            }
         } else {
             captainShare = netAmount;
         }

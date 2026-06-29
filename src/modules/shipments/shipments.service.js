@@ -37,8 +37,8 @@ const calcDistanceKm = ([lng1, lat1], [lng2, lat2]) => {
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
@@ -233,149 +233,149 @@ const updateShipmentStatus = async (id, status) => {
 };
 
 const getAvailableShipments = async (userId, role, { page, limit } = {}) => {
-    const { skip, take } = getPagination(page, limit);
+  const { skip, take } = getPagination(page, limit);
 
-    let offererId = userId;
-    if (role === "driver") {
-        const driver = await Driver.findOne({ user: userId });
-        if (driver) offererId = driver._id;
-    } else if (role === "office") {
-        const office = await Office.findOne({ user: userId });
-        if (office) offererId = office._id;
-    }
+  let offererId = userId;
+  if (role === "driver") {
+    const driver = await Driver.findOne({ user: userId });
+    if (driver) offererId = driver._id;
+  } else if (role === "office") {
+    const office = await Office.findOne({ user: userId });
+    if (office) offererId = office._id;
+  }
 
-    const alreadyOffered = await Offer.find({ offerer: offererId }).select("shipment");
-    const excludeIds = alreadyOffered.map((o) => o.shipment);
+  const alreadyOffered = await Offer.find({ offerer: offererId }).select("shipment");
+  const excludeIds = alreadyOffered.map((o) => o.shipment);
 
-    const query = {
-        status: SHIPMENT_STATUS.PENDING_OFFERS,
-        _id: { $nin: excludeIds },
-    };
+  const query = {
+    status: SHIPMENT_STATUS.PENDING_OFFERS,
+    _id: { $nin: excludeIds },
+  };
 
-    const [shipments, total] = await Promise.all([
-        Shipment.find(query).sort({ createdAt: -1 }).skip(skip).limit(take),
-        Shipment.countDocuments(query),
-    ]);
+  const [shipments, total] = await Promise.all([
+    Shipment.find(query).sort({ createdAt: -1 }).skip(skip).limit(take),
+    Shipment.countDocuments(query),
+  ]);
 
-    return { shipments, total, page: Number(page) || 1, limit: take };
+  return { shipments, total, page: Number(page) || 1, limit: take };
 };
 
 const getMyAssignedShipments = async (userId, role, { status, page, limit } = {}) => {
-    const { skip, take } = getPagination(page, limit);
+  const { skip, take } = getPagination(page, limit);
 
-    let query;
-    if (role === "office") {
-        const office = await Office.findOne({ user: userId });
-        query = office ? { assignedOffice: office._id } : { _id: null };
-    } else {
-        query = { captain: userId };
-    }
+  let query;
+  if (role === "office") {
+    const office = await Office.findOne({ user: userId });
+    query = office ? { assignedOffice: office._id } : { _id: null };
+  } else {
+    query = { captain: userId };
+  }
 
-    if (status) query.status = { $in: status.split(",") };
+  if (status) query.status = { $in: status.split(",") };
 
-    const [shipments, total] = await Promise.all([
-        Shipment.find(query)
-            .populate("captain", "fullName phone")
-            .populate("customer", "fullName phone")
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(take),
-        Shipment.countDocuments(query),
-    ]);
+  const [shipments, total] = await Promise.all([
+    Shipment.find(query)
+      .populate("captain", "fullName phone")
+      .populate("customer", "fullName phone")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(take),
+    Shipment.countDocuments(query),
+  ]);
 
-    return { shipments, total, page: Number(page) || 1, limit: take };
+  return { shipments, total, page: Number(page) || 1, limit: take };
 };
 
 const acceptAssignment = async (shipmentId, captainUserId) => {
-    const shipment = await Shipment.findById(shipmentId);
-    if (!shipment) throw ApiError.notFound("Shipment not found");
+  const shipment = await Shipment.findById(shipmentId);
+  if (!shipment) throw ApiError.notFound("Shipment not found");
 
-    if (!shipment.captain || shipment.captain.toString() !== captainUserId.toString()) {
-        throw ApiError.forbidden("This shipment is not assigned to you");
-    }
+  if (!shipment.captain || shipment.captain.toString() !== captainUserId.toString()) {
+    throw ApiError.forbidden("This shipment is not assigned to you");
+  }
 
-    if (shipment.captainStatus !== "pending") {
-        throw ApiError.badRequest(`Shipment assignment is already ${shipment.captainStatus}`);
-    }
+  if (shipment.captainStatus !== "pending") {
+    throw ApiError.badRequest(`Shipment assignment is already ${shipment.captainStatus}`);
+  }
 
-    shipment.captainStatus = "accepted";
-    shipment.status = SHIPMENT_STATUS.ASSIGNED;
-    await shipment.save();
+  shipment.captainStatus = "accepted";
+  shipment.status = SHIPMENT_STATUS.ASSIGNED;
+  await shipment.save();
 
-    const driver = await Driver.findOne({ user: captainUserId });
-    if (driver) {
-        driver.status = "busy";
-        driver.lastActiveAt = new Date();
-        await driver.save();
-    }
+  const driver = await Driver.findOne({ user: captainUserId });
+  if (driver) {
+    driver.status = "busy";
+    driver.lastActiveAt = new Date();
+    await driver.save();
+  }
 
-    try {
-        const trackingService = (await import("../tracking/tracking.service.js")).default;
-        await trackingService.initTracking(shipment._id, captainUserId).catch(() => null);
-    } catch (err) {
-        console.error("Failed to init tracking on acceptAssignment:", err);
-    }
+  try {
+    const trackingService = (await import("../tracking/tracking.service.js")).default;
+    await trackingService.initTracking(shipment._id, captainUserId).catch(() => null);
+  } catch (err) {
+    console.error("Failed to init tracking on acceptAssignment:", err);
+  }
 
-    try {
-        const notificationsService = (await import("../notifications/notifications.service.js")).default;
-        await notificationsService.createNotification({
-            userId: shipment.customer,
-            type: "captain_assigned",
-            title: "Captain Assigned",
-            message: `A captain has accepted your shipment #${shipment.trackingNumber}.`,
-            relatedShipmentId: shipment._id,
-        });
-    } catch (err) {
-        console.error("Failed to send customer notification:", err);
-    }
+  try {
+    const notificationsService = (await import("../notifications/notifications.service.js")).default;
+    await notificationsService.createNotification({
+      userId: shipment.customer,
+      type: "captain_assigned",
+      title: "Captain Assigned",
+      message: `A captain has accepted your shipment #${shipment.trackingNumber}.`,
+      relatedShipmentId: shipment._id,
+    });
+  } catch (err) {
+    console.error("Failed to send customer notification:", err);
+  }
 
-    return shipment;
+  return shipment;
 };
 
 const rejectAssignment = async (shipmentId, captainUserId) => {
-    const shipment = await Shipment.findById(shipmentId);
-    if (!shipment) throw ApiError.notFound("Shipment not found");
+  const shipment = await Shipment.findById(shipmentId);
+  if (!shipment) throw ApiError.notFound("Shipment not found");
 
-    if (!shipment.captain || shipment.captain.toString() !== captainUserId.toString()) {
-        throw ApiError.forbidden("This shipment is not assigned to you");
+  if (!shipment.captain || shipment.captain.toString() !== captainUserId.toString()) {
+    throw ApiError.forbidden("This shipment is not assigned to you");
+  }
+
+  if (shipment.captainStatus !== "pending") {
+    throw ApiError.badRequest(`Shipment assignment is already ${shipment.captainStatus}`);
+  }
+
+  shipment.captainStatus = "rejected";
+  shipment.captain = null;
+  shipment.officeDiscountPercentage = 0;
+  shipment.captainPrice = null;
+  await shipment.save();
+
+  const driver = await Driver.findOne({ user: captainUserId });
+  if (driver) {
+    driver.status = "available";
+    await driver.save();
+  }
+
+  try {
+    const notificationsService = (await import("../notifications/notifications.service.js")).default;
+    if (shipment.assignedOffice) {
+      const OfficeModel = (await import("../../database/models/Office.js")).default;
+      const office = await OfficeModel.findById(shipment.assignedOffice);
+      if (office) {
+        await notificationsService.createNotification({
+          userId: office.user,
+          type: "captain_rejected",
+          title: "Shipment Assignment Rejected",
+          message: `Captain rejected the assignment for shipment #${shipment.trackingNumber}.`,
+          relatedShipmentId: shipment._id,
+        });
+      }
     }
+  } catch (err) {
+    console.error("Failed to send notification on reject:", err);
+  }
 
-    if (shipment.captainStatus !== "pending") {
-        throw ApiError.badRequest(`Shipment assignment is already ${shipment.captainStatus}`);
-    }
-
-    shipment.captainStatus = "rejected";
-    shipment.captain = null;
-    shipment.officeDiscountPercentage = 0;
-    shipment.captainPrice = null;
-    await shipment.save();
-
-    const driver = await Driver.findOne({ user: captainUserId });
-    if (driver) {
-        driver.status = "available";
-        await driver.save();
-    }
-
-    try {
-        const notificationsService = (await import("../notifications/notifications.service.js")).default;
-        if (shipment.assignedOffice) {
-            const OfficeModel = (await import("../../database/models/Office.js")).default;
-            const office = await OfficeModel.findById(shipment.assignedOffice);
-            if (office) {
-                await notificationsService.createNotification({
-                    userId: office.user,
-                    type: "captain_rejected",
-                    title: "Shipment Assignment Rejected",
-                    message: `Captain rejected the assignment for shipment #${shipment.trackingNumber}.`,
-                    relatedShipmentId: shipment._id,
-                });
-            }
-        }
-    } catch (err) {
-        console.error("Failed to send notification on reject:", err);
-    }
-
-    return shipment;
+  return shipment;
 };
 
 export default {

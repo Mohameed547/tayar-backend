@@ -258,6 +258,21 @@ const updateOfficeStatus = async (id, status) => {
         { new: true },
     );
 
+    if (status === "active") {
+        const Verification = (await import("../../../database/models/Verification.model.js")).default;
+        await Verification.findOneAndUpdate(
+            { user: office.user },
+            { status: "approved" },
+            { upsert: true }
+        );
+    } else if (status === "pending" || status === "suspended") {
+        const Verification = (await import("../../../database/models/Verification.model.js")).default;
+        await Verification.findOneAndUpdate(
+            { user: office.user },
+            { status: status === "pending" ? "pending" : "rejected" }
+        );
+    }
+
     return { id: office._id, status: user.status };
 };
 

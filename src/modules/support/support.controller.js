@@ -47,3 +47,17 @@ export const getTicketById = async (req, res, next) => {
         next(err);
     }
 };
+
+export const addTicketMessage = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { text } = req.body;
+        const senderName = req.user.fullName || "User";
+
+        const message = await supportService.addMessage(id, text, "user", senderName);
+
+        return res.status(201).json(ApiResponse.success(message, "Message added successfully"));
+    } catch (err) {
+        next(err);
+    }
+};
