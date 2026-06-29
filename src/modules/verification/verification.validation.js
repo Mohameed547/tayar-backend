@@ -5,7 +5,7 @@ export const uploadDocumentSchema = Joi.object({
     documentType: Joi.string()
         .valid("national_id", "driving_license", "vehicle_license", "commercial_register")
         .required(),
-    documentUrl: Joi.string().uri().required(),
+    documentUrl: Joi.string().required(),
 });
 
 export const reviewVerificationSchema = Joi.object({

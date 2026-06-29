@@ -6,6 +6,8 @@ import { validate } from "../../shared/middleware/validate.js";
 import { ROLES } from "../../shared/constants/roles.js";
 import { updateDriverStatusSchema, updateDriverAvailabilitySchema } from "./drivers.validation.js";
 
+import { checkVerified } from "../../shared/middleware/checkVerified.js";
+
 const router = Router();
 
 router.use(authenticate);
@@ -13,6 +15,7 @@ router.use(authenticate);
 router.patch(
   "/availability",
   authorize(ROLES.CAPTAIN),
+  checkVerified,
   validate(updateDriverAvailabilitySchema),
   updateDriverAvailability,
 );

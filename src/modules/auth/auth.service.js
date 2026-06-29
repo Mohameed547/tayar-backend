@@ -62,7 +62,7 @@ export async function register(payload) {
         phone,
         password,
         role,
-        status: role === "customer" || role === "office" ? "active" : "pending",
+        status: role === "customer" ? "active" : "pending",
       });
       await user.save({ session });
       logger.info(`Saved User in transaction: ${user._id}`);
@@ -104,7 +104,7 @@ export async function register(payload) {
         phone,
         password,
         role,
-        status: role === "customer" || role === "office" ? "active" : "pending",
+        status: role === "customer" ? "active" : "pending",
       });
       await user.save();
       logger.info(`Saved User in standalone: ${user._id}`);

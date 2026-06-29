@@ -429,6 +429,9 @@ const updateStatus = async (shipmentId, captainId, { status, note }) => {
     const driver = await Driver.findOne({ user: captainId });
     if (driver) {
       driver.status = "available";
+      if (status === TRACKING_STATUS.DELIVERED) {
+        driver.totalDeliveries = (driver.totalDeliveries || 0) + 1;
+      }
       await driver.save();
     }
 

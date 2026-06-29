@@ -10,6 +10,8 @@ import {
 } from "./tracking.validation.js";
 import { getTracking, postLocationPing, postStatusUpdate } from "./tracking.controller.js";
 
+import { checkVerified } from "../../shared/middleware/checkVerified.js";
+
 const router = Router();
 
 router.use(authenticate);
@@ -19,6 +21,7 @@ router.get("/:shipmentId", validate(shipmentIdParamSchema, "params"), getTrackin
 router.post(
     "/:shipmentId/location",
     authorize(ROLES.CAPTAIN),
+    checkVerified,
     validate(shipmentIdParamSchema, "params"),
     validate(locationPingSchema, "body"),
     postLocationPing
@@ -27,6 +30,7 @@ router.post(
 router.post(
     "/:shipmentId/status",
     authorize(ROLES.CAPTAIN),
+    checkVerified,
     validate(shipmentIdParamSchema, "params"),
     validate(statusUpdateSchema, "body"),
     postStatusUpdate

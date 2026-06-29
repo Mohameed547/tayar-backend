@@ -20,6 +20,9 @@ const formatShipment = (shipment) => ({
     captain: shipment.captain ?? null,
     createdAt: shipment.createdAt,
     price: shipment.price,
+    officeDiscountPercentage: shipment.officeDiscountPercentage ?? 0,
+    captainPrice: shipment.captainPrice ?? null,
+    captainStatus: shipment.captainStatus ?? null,
 });
 
 // Shipments whose winning offer belongs to this office but haven't been
@@ -71,7 +74,7 @@ const ensureOfficeCaptain = async (office, captainId) => {
     return driver;
 };
 
-const assignToCaptain = async (officeUserId, shipmentId, captainId) => {
+const assignToCaptain = async (officeUserId, shipmentId, captainId, percentage = 0) => {
     const { office, shipment } = await ensureOfficeShipment(officeUserId, shipmentId);
     const driver = await ensureOfficeCaptain(office, captainId);
 
@@ -80,13 +83,11 @@ const assignToCaptain = async (officeUserId, shipmentId, captainId) => {
     }
 
     shipment.captain = driver.user;
+    shipment.officeDiscountPercentage = percentage;
+    const originalPrice = shipment.price || 0;
+    shipment.captainPrice = originalPrice * (1 - percentage / 100);
+    shipment.captainStatus = "pending";
     await shipment.save();
-
-    driver.status = CAPTAIN_STATUS.BUSY;
-    driver.lastActiveAt = new Date();
-    await driver.save();
-
-    await trackingService.initTracking(shipment._id, driver.user).catch(() => null);
 
     try {
         const notificationsService = (await import("../notifications/notifications.service.js")).default;
@@ -94,16 +95,8 @@ const assignToCaptain = async (officeUserId, shipmentId, captainId) => {
         await notificationsService.createNotification({
             userId: driver.user,
             type: "captain_assigned",
-            title: "New Shipment Assigned",
-            message: `You have been assigned to deliver shipment #${shipment.trackingNumber}.`,
-            relatedShipmentId: shipment._id,
-        });
-        // Notify Customer
-        await notificationsService.createNotification({
-            userId: shipment.customer,
-            type: "captain_assigned",
-            title: "Captain Assigned",
-            message: `A captain has been assigned to deliver your shipment #${shipment.trackingNumber}.`,
+            title: "New Shipment Assignment Offered",
+            message: `You have been offered shipment #${shipment.trackingNumber} with a payout of EGP ${shipment.captainPrice}. Please accept or reject it.`,
             relatedShipmentId: shipment._id,
         });
     } catch (err) {
@@ -113,7 +106,7 @@ const assignToCaptain = async (officeUserId, shipmentId, captainId) => {
     return formatShipment(shipment);
 };
 
-const reassignToCaptain = async (officeUserId, shipmentId, captainId) => {
+const reassignToCaptain = async (officeUserId, shipmentId, captainId, percentage = 0) => {
     const { office, shipment } = await ensureOfficeShipment(officeUserId, shipmentId);
     const newDriver = await ensureOfficeCaptain(office, captainId);
 
@@ -130,11 +123,11 @@ const reassignToCaptain = async (officeUserId, shipmentId, captainId) => {
     }
 
     shipment.captain = newDriver.user;
+    shipment.officeDiscountPercentage = percentage;
+    const originalPrice = shipment.price || 0;
+    shipment.captainPrice = originalPrice * (1 - percentage / 100);
+    shipment.captainStatus = "pending";
     await shipment.save();
-
-    newDriver.status = CAPTAIN_STATUS.BUSY;
-    newDriver.lastActiveAt = new Date();
-    await newDriver.save();
 
     try {
         const notificationsService = (await import("../notifications/notifications.service.js")).default;
@@ -142,16 +135,8 @@ const reassignToCaptain = async (officeUserId, shipmentId, captainId) => {
         await notificationsService.createNotification({
             userId: newDriver.user,
             type: "captain_assigned",
-            title: "New Shipment Assigned (Reassigned)",
-            message: `You have been assigned to deliver shipment #${shipment.trackingNumber}.`,
-            relatedShipmentId: shipment._id,
-        });
-        // Notify Customer
-        await notificationsService.createNotification({
-            userId: shipment.customer,
-            type: "captain_assigned",
-            title: "Captain Reassigned",
-            message: `A new captain has been assigned to deliver your shipment #${shipment.trackingNumber}.`,
+            title: "New Shipment Assignment Offered",
+            message: `You have been offered shipment #${shipment.trackingNumber} with a payout of EGP ${shipment.captainPrice}. Please accept or reject it.`,
             relatedShipmentId: shipment._id,
         });
     } catch (err) {
@@ -175,6 +160,9 @@ const rejectOffer = async (officeUserId, shipmentId) => {
     shipment.status = SHIPMENT_STATUS.PENDING_OFFERS;
     shipment.assignedOffice = null;
     shipment.captain = null;
+    shipment.captainStatus = null;
+    shipment.officeDiscountPercentage = 0;
+    shipment.captainPrice = null;
     shipment.selectedOfferId = null;
     await shipment.save();
 
