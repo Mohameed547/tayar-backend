@@ -34,9 +34,11 @@ import {
     getDashboard,
 } from "./office-offers.controller.js";
 
+import { checkVerified } from "../../shared/middleware/checkVerified.js";
+
 const router = Router();
 
-router.use(authenticate, authorize(ROLES.OFFICE));
+router.use(authenticate, authorize(ROLES.OFFICE), checkVerified);
 
 router.post("/captains", validate(createCaptainSchema), createCaptain);
 router.get("/captains", validate(captainListQuerySchema, "query"), getCaptains);
