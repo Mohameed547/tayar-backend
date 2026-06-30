@@ -4,9 +4,9 @@ import router from "./routes/index.js";
 import errorHandler from "./shared/middleware/errorHandler.js";
 
 const app = express();
-
+app.set("trust proxy", 1);
 app.use((req, res, next) => {
-  res.setHeader('bypass-tunnel-reminder', 'true');
+  res.setHeader("bypass-tunnel-reminder", "true");
   next();
 });
 // CORS
@@ -14,20 +14,23 @@ const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:3001",
   "http://localhost:5173",
-  process.env.CLIENT_ORIGIN
+  process.env.CLIENT_ORIGIN,
 ].filter(Boolean);
 
 app.use(
-    cors({
-        origin: function(origin, callback) {
-            if (!origin) return callback(null, true);
-            if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes("*")) {
-                return callback(null, true);
-            }
-            return callback(new Error('CORS mismatch'), false);
-        },
-        credentials: true,
-    }),
+  cors({
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      if (
+        allowedOrigins.indexOf(origin) !== -1 ||
+        allowedOrigins.includes("*")
+      ) {
+        return callback(null, true);
+      }
+      return callback(new Error("CORS mismatch"), false);
+    },
+    credentials: true,
+  }),
 );
 
 // Body parsers
@@ -36,7 +39,7 @@ app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 // Health check
 app.get("/health", (req, res) => {
-    res.status(200).json({ status: "ok", message: "Server is running" });
+  res.status(200).json({ status: "ok", message: "Server is running" });
 });
 
 // Routes
