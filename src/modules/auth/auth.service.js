@@ -324,7 +324,28 @@ export async function verifyPhoneOtp({ phone, otp }) {
 export async function forgotPassword(email) {
   const user = await User.findOne({ email: email.toLowerCase() });
   if (!user) {
-    return { message: "If an account exists, a reset link has been sent" };
+    throw ApiError.notFound("No account found with this email address");
+  }
+
+  await sendEmailOtp(user, "password_reset");
+  return { message: "OTP sent to your registered email" };
+}
+
+export async function verifyResetOtp({ email, otp }) {
+  const user = await User.findOne({ email: email.toLowerCase() }).select("+otpHash +otpExpires +otpPurpose");
+  if (!user) {
+    throw ApiError.notFound("No account found with this email address");
+  }
+
+  if (user.otpPurpose !== "password_reset") {
+    throw ApiError.badRequest("Invalid OTP purpose");
+  }
+
+  const result = checkOtp(otp, user.otpHash, user.otpExpires);
+  if (!result.valid) {
+    throw ApiError.badRequest(
+      result.reason === "expired" ? "OTP has expired" : "Invalid OTP",
+    );
   }
 
   const rawToken = crypto.randomBytes(32).toString("hex");
@@ -332,13 +353,15 @@ export async function forgotPassword(email) {
     .createHash("sha256")
     .update(rawToken)
     .digest("hex");
-  user.passwordResetExpires = new Date(Date.now() + 30 * 60 * 1000);
+  user.passwordResetExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+  user.otpHash = undefined;
+  user.otpExpires = undefined;
+  user.otpPurpose = undefined;
   await user.save();
 
-  logger.info(
-    `[PasswordReset] token for ${user.email}: ${rawToken} (would be emailed in production)`,
-  );
-  return { message: "If an account exists, a reset link has been sent" };
+  logger.info(`[PasswordReset] OTP verified successfully. Reset token generated: ${rawToken}`);
+  return { token: rawToken };
 }
 
 export async function resetPassword({ token, newPassword }) {

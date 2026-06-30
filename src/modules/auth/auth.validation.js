@@ -58,3 +58,8 @@ export const changePassword = Joi.object({
 export const verifyEmail = Joi.object({
     token: Joi.string().required(),
 });
+
+export const verifyResetOtp = Joi.object({
+    email: Joi.string().email().required(),
+    otp: Joi.string().length(6).pattern(/^\d+$/).required(),
+});
