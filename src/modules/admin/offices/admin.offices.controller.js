@@ -1,4 +1,4 @@
-import adminOfficesService from "./Admin.offices.service.js";
+import adminOfficesService from "./admin.offices.service.js";
 import ApiResponse from "../../../shared/utils/ApiResponse.js";
 
 export const getOffices = async (req, res, next) => {

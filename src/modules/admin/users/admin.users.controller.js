@@ -1,4 +1,4 @@
-import adminUsersService from "./Admin.users.service.js";
+import adminUsersService from "./admin.users.service.js";
 import ApiResponse from "../../../shared/utils/ApiResponse.js";
 
 export const getUsers = async (req, res, next) => {

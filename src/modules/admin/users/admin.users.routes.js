@@ -2,12 +2,12 @@ import { Router } from "express";
 import { authenticate } from "../../../shared/middleware/authenticate.js";
 import { authorize } from "../../../shared/middleware/authorize.js";
 import { validate } from "../../../shared/middleware/validate.js";
-import { updateUserStatusSchema } from "./Admin.users.validation.js";
+import { updateUserStatusSchema } from "./admin.users.validation.js";
 import {
   getUsers,
   getUserById,
   updateUserStatus,
-} from "./Admin.users.controller.js";
+} from "./admin.users.controller.js";
 
 const router = Router();
 

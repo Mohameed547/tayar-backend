@@ -1,4 +1,4 @@
-import adminDashboardService from "./Admin.dashboard.service.js";
+import adminDashboardService from "./admin.dashboard.service.js";
 import ApiResponse from "../../../shared/utils/ApiResponse.js";
 
 export const getDashboardData = async (req, res, next) => {

@@ -2,13 +2,13 @@ import { Router } from "express";
 import { authenticate } from "../../../shared/middleware/authenticate.js";
 import { authorize } from "../../../shared/middleware/authorize.js";
 import { validate } from "../../../shared/middleware/validate.js";
-import { updateOfficeStatusSchema } from "./Admin.offices.validation.js";
+import { updateOfficeStatusSchema } from "./admin.offices.validation.js";
 import {
   getOffices,
   getStats,
   getOfficeById,
   updateOfficeStatus,
-} from "./Admin.offices.controller.js";
+} from "./admin.offices.controller.js";
 
 const router = Router();
 

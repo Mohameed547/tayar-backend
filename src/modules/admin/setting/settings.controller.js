@@ -1,4 +1,4 @@
-import settingsService from "./Settings.service.js";
+import settingsService from "./settings.service.js";
 import ApiResponse from "../../../shared/utils/ApiResponse.js";
 
 const getSettings = async (req, res, next) => {
