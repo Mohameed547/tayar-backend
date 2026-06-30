@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authenticate } from "../../../shared/middleware/authenticate.js";
 import { authorize } from "../../../shared/middleware/authorize.js";
-import settingsController from "./settings.controller.js";
+import settingsController from "./Settings.controller.js";
 
 const router = Router();
 
