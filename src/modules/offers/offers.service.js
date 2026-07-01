@@ -179,6 +179,7 @@ const acceptOffer = async (userId, offerId) => {
     await Shipment.findByIdAndUpdate(shipment._id, {
       status: SHIPMENT_STATUS.CAPTAIN_ASSIGNMENT,
       captain: driver ? driver.user : offer.offerer,
+      captainStatus: "pending",
       assignedOffice: null,
       selectedOfferId: offer._id,
       etaDescription: offer.estimatedDelivery,

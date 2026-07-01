@@ -355,8 +355,8 @@ const requestWithdrawal = async (
         const wallet = await getOrCreateWallet(userId, role, session);
         assertWalletIsActive(wallet);
 
-        if (![USER_TYPE.DRIVER, USER_TYPE.OFFICE].includes(wallet.userType)) {
-            throw new ApiError(403, "Only driver or office wallets can request a withdrawal");
+        if (![USER_TYPE.DRIVER, USER_TYPE.OFFICE, USER_TYPE.CUSTOMER].includes(wallet.userType)) {
+            throw new ApiError(403, "Only driver, office, or customer wallets can request a withdrawal");
         }
 
         if (wallet.balance < amount) {

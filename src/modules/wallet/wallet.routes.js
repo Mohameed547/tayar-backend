@@ -39,7 +39,7 @@ router.post(
 
 router.post(
     "/withdraw",
-    authorize("driver", "office"),
+    authorize("driver", "office", "customer"),
     validate(withdrawalSchema),
     requestWithdrawal,
 );

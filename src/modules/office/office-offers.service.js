@@ -71,6 +71,9 @@ const ensureOfficeCaptain = async (office, captainId) => {
     const driver = await Driver.findOne({ _id: captainId, officeId: office._id });
     if (!driver) throw ApiError.notFound("Captain not found for this office");
     if (!driver.isActive) throw ApiError.badRequest("Captain is deactivated");
+    if (driver.status === CAPTAIN_STATUS.BUSY) {
+        throw ApiError.badRequest("Captain is currently busy with another shipment");
+    }
     return driver;
 };
 
@@ -85,7 +88,11 @@ const assignToCaptain = async (officeUserId, shipmentId, captainId, percentage =
     shipment.captain = driver.user;
     shipment.officeDiscountPercentage = percentage;
     const originalPrice = shipment.price || 0;
-    shipment.captainPrice = originalPrice * (1 - percentage / 100);
+    const Escrow = (await import("../../database/models/Escrow.model.js")).default;
+    const escrow = await Escrow.findOne({ shipment: shipment._id });
+    const netAmount = escrow ? escrow.netAmount : (originalPrice * 0.9);
+    const officeShare = originalPrice * (percentage / 100);
+    shipment.captainPrice = Math.max(0, netAmount - officeShare);
     shipment.captainStatus = "pending";
     await shipment.save();
 
@@ -125,7 +132,11 @@ const reassignToCaptain = async (officeUserId, shipmentId, captainId, percentage
     shipment.captain = newDriver.user;
     shipment.officeDiscountPercentage = percentage;
     const originalPrice = shipment.price || 0;
-    shipment.captainPrice = originalPrice * (1 - percentage / 100);
+    const Escrow = (await import("../../database/models/Escrow.model.js")).default;
+    const escrow = await Escrow.findOne({ shipment: shipment._id });
+    const netAmount = escrow ? escrow.netAmount : (originalPrice * 0.9);
+    const officeShare = originalPrice * (percentage / 100);
+    shipment.captainPrice = Math.max(0, netAmount - officeShare);
     shipment.captainStatus = "pending";
     await shipment.save();
 

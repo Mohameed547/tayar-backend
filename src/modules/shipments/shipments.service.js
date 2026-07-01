@@ -299,7 +299,7 @@ const acceptAssignment = async (shipmentId, captainUserId) => {
   }
 
   shipment.captainStatus = "accepted";
-  shipment.status = SHIPMENT_STATUS.ASSIGNED;
+  shipment.status = SHIPMENT_STATUS.CAPTAIN_ASSIGNMENT;
   await shipment.save();
 
   const driver = await Driver.findOne({ user: captainUserId });
@@ -325,8 +325,21 @@ const acceptAssignment = async (shipmentId, captainUserId) => {
       message: `A captain has accepted your shipment #${shipment.trackingNumber}.`,
       relatedShipmentId: shipment._id,
     });
+
+    if (shipment.assignedOffice) {
+      const office = await Office.findById(shipment.assignedOffice);
+      if (office) {
+        await notificationsService.createNotification({
+          userId: office.user,
+          type: "captain_accepted",
+          title: "Shipment Assignment Accepted",
+          message: `Captain accepted the assignment for shipment #${shipment.trackingNumber}.`,
+          relatedShipmentId: shipment._id,
+        });
+      }
+    }
   } catch (err) {
-    console.error("Failed to send customer notification:", err);
+    console.error("Failed to send notification on accept:", err);
   }
 
   return shipment;
