@@ -42,6 +42,7 @@ const formatTicket = (ticket, shipment = null, driver = null) => {
         shipmentId: shipment?._id || null,
         category: ticket.category,
         resolvedAt: ticket.resolvedAt || null,
+        messages: ticket.messages || [],
     };
 };
 

@@ -123,6 +123,22 @@ const shipmentSchema = new mongoose.Schema(
       max: 100,
       default: 0,
     },
+
+    officeDiscountPercentage: {
+      type: Number,
+      default: 0,
+    },
+
+    captainPrice: {
+      type: Number,
+      default: null,
+    },
+
+    captainStatus: {
+      type: String,
+      enum: ["pending", "accepted", "rejected"],
+      default: null,
+    },
   },
   {
     timestamps: true,

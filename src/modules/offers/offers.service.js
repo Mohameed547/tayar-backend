@@ -151,6 +151,10 @@ const acceptOffer = async (userId, offerId) => {
   if (shipment.status !== SHIPMENT_STATUS.PENDING_OFFERS)
     throw new ApiError(400, "Shipment is no longer accepting offers");
 
+  // Lock customer funds
+  const walletService = (await import("../wallet/wallet.service.js")).default;
+  await walletService.lockFunds(shipment.customer, offer.price, shipment._id);
+
   offer.status = "accepted";
   await offer.save();
 
@@ -175,6 +179,7 @@ const acceptOffer = async (userId, offerId) => {
     await Shipment.findByIdAndUpdate(shipment._id, {
       status: SHIPMENT_STATUS.CAPTAIN_ASSIGNMENT,
       captain: driver ? driver.user : offer.offerer,
+      captainStatus: "pending",
       assignedOffice: null,
       selectedOfferId: offer._id,
       etaDescription: offer.estimatedDelivery,

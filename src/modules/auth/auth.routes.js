@@ -42,6 +42,12 @@ router.post(
   controller.forgotPassword,
 );
 router.post(
+  "/verify-reset-otp",
+  authLimiter,
+  validate(schemas.verifyResetOtp),
+  controller.verifyResetOtp,
+);
+router.post(
   "/reset-password",
   authLimiter,
   validate(schemas.resetPassword),

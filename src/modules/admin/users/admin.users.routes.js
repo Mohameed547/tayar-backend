@@ -4,9 +4,9 @@ import { authorize } from "../../../shared/middleware/authorize.js";
 import { validate } from "../../../shared/middleware/validate.js";
 import { updateUserStatusSchema } from "./admin.users.validation.js";
 import {
-    getUsers,
-    getUserById,
-    updateUserStatus,
+  getUsers,
+  getUserById,
+  updateUserStatus,
 } from "./admin.users.controller.js";
 
 const router = Router();

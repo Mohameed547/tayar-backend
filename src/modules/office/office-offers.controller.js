@@ -21,10 +21,12 @@ export const getAssignedOffers = async (req, res, next) => {
 
 export const assignOffer = async (req, res, next) => {
     try {
+        const percentage = req.body.percentage !== undefined ? Number(req.body.percentage) : 0;
         const result = await officeOffersService.assignToCaptain(
             req.user._id,
             req.params.offerId,
             req.params.captainId,
+            percentage,
         );
         return res.status(200).json(ApiResponse.success(result, "Shipment assigned to captain"));
     } catch (err) {
@@ -34,10 +36,12 @@ export const assignOffer = async (req, res, next) => {
 
 export const reassignOffer = async (req, res, next) => {
     try {
+        const percentage = req.body.percentage !== undefined ? Number(req.body.percentage) : 0;
         const result = await officeOffersService.reassignToCaptain(
             req.user._id,
             req.params.offerId,
             req.params.captainId,
+            percentage,
         );
         return res.status(200).json(ApiResponse.success(result, "Shipment reassigned to captain"));
     } catch (err) {

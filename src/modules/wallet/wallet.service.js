@@ -34,6 +34,27 @@ const generateReferenceId = (prefix) =>
 // دالة مشتركة لتجهيز الدفع عبر محافظ Paymob
 const initPaymobWalletPayment = async (amount, payload) => {
     try {
+        if (!process.env.PAYMOB_API_KEY || !process.env.PAYMOB_WALLET_INTEGRATION_ID) {
+            console.warn("Paymob environment variables not set. Falling back to sandbox/simulated payment.");
+            const orderId = `SIM-PM-${Date.now()}`;
+            
+            // Execute confirmTopUp in background to simulate successful gateway webhook callback
+            setTimeout(async () => {
+                try {
+                    console.log(`[SIMULATION] Triggering confirmTopUp for reference ${orderId} with amount ${amount}`);
+                    await confirmTopUp(orderId, amount);
+                } catch (simErr) {
+                    console.error("[SIMULATION] Failed to confirm topup:", simErr.message);
+                }
+            }, 1000);
+
+            return {
+                success: true,
+                providerReference: orderId,
+                redirectUrl: "/wallet?status=success",
+            };
+        }
+
         // 1. Authentication
         const authRes = await axios.post("https://accept.paymob.com/api/auth/tokens", {
             api_key: process.env.PAYMOB_API_KEY,
@@ -177,7 +198,27 @@ const handleTopUp = async (userId, role, { amount, gateway, referenceId, metadat
         const wallet = await getOrCreateWallet(userId, role, session);
         assertWalletIsActive(wallet);
 
-        const gatewayResult = await chargeGateway(gateway, amount, { userId, metadata });
+        let gatewayResult;
+        if (process.env.MOCK_PAYMENT === "true") {
+            const mockRef = `SIM-${gateway}-${Date.now()}`;
+            gatewayResult = {
+                success: true,
+                providerReference: mockRef,
+                redirectUrl: "/wallet?status=success",
+            };
+            
+            // Simulating successful gateway callback
+            setTimeout(async () => {
+                try {
+                    console.log(`[SIMULATION] Triggering confirmTopUp for reference ${mockRef} with amount ${amount}`);
+                    await confirmTopUp(mockRef, amount);
+                } catch (simErr) {
+                    console.error("[SIMULATION] Failed to confirm mock topup:", simErr.message);
+                }
+            }, 1000);
+        } else {
+            gatewayResult = await chargeGateway(gateway, amount, { userId, metadata });
+        }
 
         // المعاملة تنشأ PENDING ولن يتم تزويد الرصيد هنا بل في الـ Webhook
         const [transaction] = await Transaction.create(
@@ -214,11 +255,19 @@ const confirmTopUp = async (orderId, amount) => {
         const wallet = await Wallet.findById(transaction.walletId).session(session);
         if (!wallet) return null;
 
-        wallet.balance += amount;
+        const commission = 0;
+        const netAmount = amount;
+
+        wallet.balance += netAmount;
         await wallet.save({ session });
 
         transaction.status = TRANSACTION_STATUS.COMPLETED;
         transaction.balanceAfter = wallet.balance;
+        transaction.metadata = {
+            ...transaction.metadata,
+            originalAmount: amount,
+            platformFee: commission,
+        };
         await transaction.save({ session });
 
         return { wallet, transaction };
@@ -306,8 +355,8 @@ const requestWithdrawal = async (
         const wallet = await getOrCreateWallet(userId, role, session);
         assertWalletIsActive(wallet);
 
-        if (![USER_TYPE.DRIVER, USER_TYPE.OFFICE].includes(wallet.userType)) {
-            throw new ApiError(403, "Only driver or office wallets can request a withdrawal");
+        if (![USER_TYPE.DRIVER, USER_TYPE.OFFICE, USER_TYPE.CUSTOMER].includes(wallet.userType)) {
+            throw new ApiError(403, "Only driver, office, or customer wallets can request a withdrawal");
         }
 
         if (wallet.balance < amount) {
@@ -338,6 +387,199 @@ const requestWithdrawal = async (
     });
 };
 
+const lockFunds = async (customerId, amount, shipmentId) => {
+    return withWalletTransaction(async (session) => {
+        const wallet = await getOrCreateWallet(customerId, "customer", session);
+        assertWalletIsActive(wallet);
+
+        if (wallet.balance < amount) {
+            throw new ApiError(400, "Insufficient wallet balance to accept this offer");
+        }
+
+        wallet.balance -= amount;
+        wallet.lockedBalance = (wallet.lockedBalance || 0) + amount;
+        await wallet.save({ session });
+
+        const referenceId = generateReferenceId("LOCK");
+        await Transaction.create(
+            [
+                {
+                    walletId: wallet._id,
+                    type: TRANSACTION_TYPE.DEBIT,
+                    purpose: TRANSACTION_PURPOSE.PAYMENT,
+                    amount,
+                    gateway: GATEWAY.INTERNAL,
+                    status: TRANSACTION_STATUS.COMPLETED,
+                    referenceId,
+                    metadata: { shipmentId, type: "lock" },
+                    balanceAfter: wallet.balance,
+                },
+            ],
+            { session },
+        );
+
+        return wallet;
+    });
+};
+
+const releaseFunds = async (shipmentId) => {
+    return withWalletTransaction(async (session) => {
+        const Escrow = mongoose.model("Escrow");
+        const Shipment = mongoose.model("Shipment");
+
+        const escrow = await Escrow.findOne({ shipment: shipmentId, status: "held" }).session(session);
+        if (!escrow) {
+            console.warn(`No escrow held for shipment ${shipmentId}`);
+            return;
+        }
+
+        const shipment = await Shipment.findById(shipmentId).session(session);
+        if (!shipment) throw new ApiError(404, "Shipment not found");
+
+        // 1. Release escrow
+        escrow.status = "released";
+        escrow.releasedAt = new Date();
+        await escrow.save({ session });
+
+        // 2. Customer wallet: deduct from lockedBalance
+        const customerWallet = await getOrCreateWallet(escrow.customer, "customer", session);
+        customerWallet.lockedBalance = Math.max(0, (customerWallet.lockedBalance || 0) - escrow.amount);
+        await customerWallet.save({ session });
+
+        const referenceId = generateReferenceId("RELEASE");
+
+        // Create transaction for customer
+        await Transaction.create(
+            [
+                {
+                    walletId: customerWallet._id,
+                    type: TRANSACTION_TYPE.DEBIT,
+                    purpose: TRANSACTION_PURPOSE.PAYMENT,
+                    amount: escrow.amount,
+                    gateway: GATEWAY.INTERNAL,
+                    status: TRANSACTION_STATUS.COMPLETED,
+                    referenceId,
+                    metadata: { shipmentId, type: "payment_released" },
+                    balanceAfter: customerWallet.balance,
+                },
+            ],
+            { session },
+        );
+
+        // 3. Determine shares
+        let officeShare = 0;
+        let captainShare = escrow.amount;
+
+        const netAmount = escrow.netAmount; // price - platform fee
+
+        if (shipment.assignedOffice) {
+            if (shipment.captainPrice !== undefined && shipment.captainPrice !== null) {
+                captainShare = Math.min(netAmount, shipment.captainPrice);
+                officeShare = Math.max(0, netAmount - captainShare);
+            } else {
+                officeShare = Math.round(escrow.amount * 0.1); // Office gets 10% of total
+                captainShare = netAmount - officeShare;
+            }
+        } else {
+            captainShare = netAmount;
+        }
+
+        // 4. Pay Captain
+        if (shipment.captain) {
+            const captainWallet = await getOrCreateWallet(shipment.captain, "driver", session);
+            captainWallet.balance += captainShare;
+            await captainWallet.save({ session });
+
+            await Transaction.create(
+                [
+                    {
+                        walletId: captainWallet._id,
+                        type: TRANSACTION_TYPE.CREDIT,
+                        purpose: TRANSACTION_PURPOSE.EARNING,
+                        amount: captainShare,
+                        gateway: GATEWAY.INTERNAL,
+                        status: TRANSACTION_STATUS.COMPLETED,
+                        referenceId,
+                        metadata: { shipmentId, type: "earnings" },
+                        balanceAfter: captainWallet.balance,
+                    },
+                ],
+                { session },
+            );
+        }
+
+        // 5. Pay Office
+        if (shipment.assignedOffice && officeShare > 0) {
+            const OfficeModel = mongoose.model("Office");
+            const officeDoc = await OfficeModel.findById(shipment.assignedOffice).session(session);
+            if (officeDoc) {
+                const officeWallet = await getOrCreateWallet(officeDoc.user, "office", session);
+                officeWallet.balance += officeShare;
+                await officeWallet.save({ session });
+
+                await Transaction.create(
+                    [
+                        {
+                            walletId: officeWallet._id,
+                            type: TRANSACTION_TYPE.CREDIT,
+                            purpose: TRANSACTION_PURPOSE.EARNING,
+                            amount: officeShare,
+                            gateway: GATEWAY.INTERNAL,
+                            status: TRANSACTION_STATUS.COMPLETED,
+                            referenceId,
+                            metadata: { shipmentId, type: "earnings" },
+                            balanceAfter: officeWallet.balance,
+                        },
+                    ],
+                    { session },
+                );
+            }
+        }
+    });
+};
+
+const refundFunds = async (shipmentId) => {
+    return withWalletTransaction(async (session) => {
+        const Escrow = mongoose.model("Escrow");
+
+        const escrow = await Escrow.findOne({ shipment: shipmentId, status: "held" }).session(session);
+        if (!escrow) {
+            console.warn(`No escrow held for shipment ${shipmentId}`);
+            return;
+        }
+
+        // 1. Mark escrow as refunded
+        escrow.status = "refunded";
+        escrow.refundedAt = new Date();
+        await escrow.save({ session });
+
+        // 2. Customer wallet: move from lockedBalance back to balance
+        const customerWallet = await getOrCreateWallet(escrow.customer, "customer", session);
+        customerWallet.lockedBalance = Math.max(0, (customerWallet.lockedBalance || 0) - escrow.amount);
+        customerWallet.balance += escrow.amount;
+        await customerWallet.save({ session });
+
+        const referenceId = generateReferenceId("REFUND");
+
+        await Transaction.create(
+            [
+                {
+                    walletId: customerWallet._id,
+                    type: TRANSACTION_TYPE.CREDIT,
+                    purpose: TRANSACTION_PURPOSE.REFUND,
+                    amount: escrow.amount,
+                    gateway: GATEWAY.INTERNAL,
+                    status: TRANSACTION_STATUS.COMPLETED,
+                    referenceId,
+                    metadata: { shipmentId, type: "refund" },
+                    balanceAfter: customerWallet.balance,
+                },
+            ],
+            { session },
+        );
+    });
+};
+
 export default {
     getWalletBalance,
     getTransactionHistory,
@@ -345,4 +587,7 @@ export default {
     confirmTopUp,
     handleInternalPayment,
     requestWithdrawal,
+    lockFunds,
+    releaseFunds,
+    refundFunds,
 };

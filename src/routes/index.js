@@ -52,9 +52,9 @@ import walletRoutes from "../modules/wallet/wallet.routes.js";
 import driversRoutes from "../modules/drivers/drivers.routes.js";
 import escrowRoutes from "../modules/escrow/escrow.routes.js";
 import revenueRoutes from "../modules/revenue/revenue.routes.js";
-import adminUsersRoutes from "../modules/admin/users/Admin.users.routes.js";
-import settingsRoutes from "../modules/admin/setting/Settings.routes.js";
-import adminOfficesRoutes from "../modules/admin/offices/Admin.offices.routes.js";
+import adminUsersRoutes from "../modules/admin/users/admin.users.routes.js";
+import settingsRoutes from "../modules/admin/setting/settings.routes.js";
+import adminOfficesRoutes from "../modules/admin/offices/admin.offices.routes.js";
 import adminDashboardRoutes from "../modules/admin/dashboard/admin.dashboard.routes.js";
 import adminDisputesRoutes from "../modules/admin/disputes/disputes.routes.js";
 

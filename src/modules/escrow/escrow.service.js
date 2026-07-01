@@ -40,11 +40,15 @@ const releaseEscrow = async (id) => {
       `Cannot release escrow with status: ${escrow.status}`,
     );
 
-  escrow.status = "released";
-  escrow.releasedAt = new Date();
-  await escrow.save();
+  const walletService = (await import("../wallet/wallet.service.js")).default;
+  await walletService.releaseFunds(escrow.shipment);
 
-  return escrow;
+  const updatedEscrow = await Escrow.findById(id)
+    .populate("shipment", "trackingNumber")
+    .populate("customer", "fullName")
+    .populate("driver", "fullName");
+
+  return updatedEscrow;
 };
 
 const refundEscrow = async (id) => {
@@ -57,11 +61,15 @@ const refundEscrow = async (id) => {
       `Cannot refund escrow with status: ${escrow.status}`,
     );
 
-  escrow.status = "refunded";
-  escrow.refundedAt = new Date();
-  await escrow.save();
+  const walletService = (await import("../wallet/wallet.service.js")).default;
+  await walletService.refundFunds(escrow.shipment);
 
-  return escrow;
+  const updatedEscrow = await Escrow.findById(id)
+    .populate("shipment", "trackingNumber")
+    .populate("customer", "fullName")
+    .populate("driver", "fullName");
+
+  return updatedEscrow;
 };
 
 export default { getAllEscrow, releaseEscrow, refundEscrow };

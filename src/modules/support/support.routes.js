@@ -3,6 +3,7 @@ import {
   createTicket,
   getMyTickets,
   getTicketById,
+  addTicketMessage,
 } from "./support.controller.js";
 import { authenticate } from "../../shared/middleware/authenticate.js";
 import { validate } from "../../shared/middleware/validate.js";
@@ -15,5 +16,6 @@ router.use(authenticate);
 router.post("/", validate(createTicketSchema), createTicket);
 router.get("/", getMyTickets);
 router.get("/:id", getTicketById);
+router.post("/:id/messages", addTicketMessage);
 
 export default router;

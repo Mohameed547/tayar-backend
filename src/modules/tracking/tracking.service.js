@@ -429,7 +429,21 @@ const updateStatus = async (shipmentId, captainId, { status, note }) => {
     const driver = await Driver.findOne({ user: captainId });
     if (driver) {
       driver.status = "available";
+      if (status === TRACKING_STATUS.DELIVERED) {
+        driver.totalDeliveries = (driver.totalDeliveries || 0) + 1;
+      }
       await driver.save();
+    }
+
+    const walletService = (await import("../wallet/wallet.service.js")).default;
+    if (status === TRACKING_STATUS.DELIVERED) {
+      await walletService.releaseFunds(resolvedId).catch(err => {
+        console.error("Failed to release escrow funds:", err);
+      });
+    } else if (status === TRACKING_STATUS.CANCELLED) {
+      await walletService.refundFunds(resolvedId).catch(err => {
+        console.error("Failed to refund escrow funds:", err);
+      });
     }
   }
 

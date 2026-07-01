@@ -6,6 +6,7 @@ import ApiError from "../../shared/utils/ApiError.js";
 import { getPagination } from "../../shared/utils/pagination.js";
 import { SHIPMENT_STATUS } from "../../shared/constants/shipmentStatus.js";
 import User from "../../database/models/User.model.js";
+import walletService from "../wallet/wallet.service.js";
 
 const geocodeAddress = async (address) => {
     try {
@@ -85,6 +86,15 @@ const createShipment = async (customerId, body) => {
         weight,
         deliverySpeed,
     );
+
+    const cost = price || estimatedPriceMin || 0;
+    const wallet = await walletService.getWalletBalance(customerId, "customer");
+    if (wallet.balance < cost) {
+        throw new ApiError(
+            400,
+            "Insufficient wallet balance to cover the shipment cost. Please top up your wallet.",
+        );
+    }
 
     const shipment = await Shipment.create({
         customer: customerId,
@@ -186,6 +196,13 @@ const cancelShipment = async (id, customerId) => {
     shipment.status = "cancelled";
     await shipment.save();
 
+    await walletService.refundFunds(id).catch((err) => {
+        console.error(
+            "Failed to refund escrow funds on customer cancellation:",
+            err,
+        );
+    });
+
     return shipment;
 };
 
@@ -286,6 +303,131 @@ const getMyAssignedShipments = async (
     return { shipments, total, page: Number(page) || 1, limit: take };
 };
 
+const acceptAssignment = async (shipmentId, captainUserId) => {
+    const shipment = await Shipment.findById(shipmentId);
+    if (!shipment) throw ApiError.notFound("Shipment not found");
+
+    if (
+        !shipment.captain ||
+        shipment.captain.toString() !== captainUserId.toString()
+    ) {
+        throw ApiError.forbidden("This shipment is not assigned to you");
+    }
+
+    if (shipment.captainStatus !== "pending") {
+        throw ApiError.badRequest(
+            `Shipment assignment is already ${shipment.captainStatus}`,
+        );
+    }
+
+    shipment.captainStatus = "accepted";
+    shipment.status = SHIPMENT_STATUS.CAPTAIN_ASSIGNMENT;
+    await shipment.save();
+
+    const driver = await Driver.findOne({ user: captainUserId });
+    if (driver) {
+        driver.status = "busy";
+        driver.lastActiveAt = new Date();
+        await driver.save();
+    }
+
+    try {
+        const trackingService = (
+            await import("../tracking/tracking.service.js")
+        ).default;
+        await trackingService
+            .initTracking(shipment._id, captainUserId)
+            .catch(() => null);
+    } catch (err) {
+        console.error("Failed to init tracking on acceptAssignment:", err);
+    }
+
+    try {
+        const notificationsService = (
+            await import("../notifications/notifications.service.js")
+        ).default;
+        await notificationsService.createNotification({
+            userId: shipment.customer,
+            type: "captain_assigned",
+            title: "Captain Assigned",
+            message: `A captain has accepted your shipment #${shipment.trackingNumber}.`,
+            relatedShipmentId: shipment._id,
+        });
+
+        if (shipment.assignedOffice) {
+            const office = await Office.findById(shipment.assignedOffice);
+            if (office) {
+                await notificationsService.createNotification({
+                    userId: office.user,
+                    type: "captain_accepted",
+                    title: "Shipment Assignment Accepted",
+                    message: `Captain accepted the assignment for shipment #${shipment.trackingNumber}.`,
+                    relatedShipmentId: shipment._id,
+                });
+            }
+        }
+    } catch (err) {
+        console.error("Failed to send notification on accept:", err);
+    }
+
+    return shipment;
+};
+
+const rejectAssignment = async (shipmentId, captainUserId) => {
+    const shipment = await Shipment.findById(shipmentId);
+    if (!shipment) throw ApiError.notFound("Shipment not found");
+
+    if (
+        !shipment.captain ||
+        shipment.captain.toString() !== captainUserId.toString()
+    ) {
+        throw ApiError.forbidden("This shipment is not assigned to you");
+    }
+
+    if (shipment.captainStatus !== "pending") {
+        throw ApiError.badRequest(
+            `Shipment assignment is already ${shipment.captainStatus}`,
+        );
+    }
+
+    shipment.captainStatus = "rejected";
+    shipment.captain = null;
+    shipment.officeDiscountPercentage = 0;
+    shipment.captainPrice = null;
+    await shipment.save();
+
+    const driver = await Driver.findOne({ user: captainUserId });
+    if (driver) {
+        driver.status = "available";
+        await driver.save();
+    }
+
+    try {
+        const notificationsService = (
+            await import("../notifications/notifications.service.js")
+        ).default;
+        if (shipment.assignedOffice) {
+            const OfficeModel = (
+                await import("../../database/models/Office.js")
+            ).default;
+            const office = await OfficeModel.findById(shipment.assignedOffice);
+            if (office) {
+                await notificationsService.createNotification({
+                    userId: office.user,
+                    type: "captain_rejected",
+                    title: "Shipment Assignment Rejected",
+                    message: `Captain rejected the assignment for shipment #${shipment.trackingNumber}.`,
+                    relatedShipmentId: shipment._id,
+                });
+            }
+        }
+    } catch (err) {
+        console.error("Failed to send notification on reject:", err);
+    }
+
+    return shipment;
+};
+
 export default {
     createShipment,
     getShipmentsByCustomer,
@@ -295,4 +437,6 @@ export default {
     updateShipmentStatus,
     getAvailableShipments,
     getMyAssignedShipments,
+    acceptAssignment,
+    rejectAssignment,
 };

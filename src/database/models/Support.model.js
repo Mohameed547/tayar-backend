@@ -9,6 +9,12 @@ export const TICKET_CATEGORY = {
     DELAY: "delay",
     BILLING: "billing",
     DAMAGE: "damage",
+    APP_ISSUE: "app_issue",
+    PAYMENT: "payment",
+    ACCIDENT: "accident",
+    CUSTOMER_ISSUE: "customer_issue",
+    DRIVER_ISSUE: "driver_issue",
+    SYSTEM_ISSUE: "system_issue",
     OTHER: "other",
 };
 
@@ -74,6 +80,27 @@ const supportTicketSchema = new mongoose.Schema(
             type: Date,
             default: null,
         },
+        messages: [
+            {
+                sender: {
+                    type: String,
+                    enum: ["user", "admin"],
+                    required: true,
+                },
+                senderName: {
+                    type: String,
+                    required: true,
+                },
+                text: {
+                    type: String,
+                    required: true,
+                },
+                createdAt: {
+                    type: Date,
+                    default: Date.now,
+                },
+            },
+        ],
     },
     { timestamps: true },
 );
@@ -82,6 +109,16 @@ supportTicketSchema.pre("save", async function (next) {
     if (this.isNew) {
         const seq = await getNextSequence("supportTicket");
         this.ticketNumber = `tkt-${seq}`;
+        
+        // Populate messages with initial ticket message
+        if (this.message && (!this.messages || this.messages.length === 0)) {
+            this.messages.push({
+                sender: "user",
+                senderName: "Customer",
+                text: this.message,
+                createdAt: new Date(),
+            });
+        }
     }
     next();
 });

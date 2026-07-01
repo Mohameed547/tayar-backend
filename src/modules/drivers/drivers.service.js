@@ -32,13 +32,28 @@ const getAllDrivers = async ({ status, search, page, limit }) => {
 };
 
 const updateDriverStatus = async (driverId, status) => {
-  const driver = await Driver.findById(driverId).populate("user");
+  const driver = await Driver.findById(driverId);
   if (!driver) throw ApiError.notFound("Driver not found");
 
-  driver.user.status = status;
-  await driver.user.save();
+  await User.findByIdAndUpdate(driver.user, { status });
 
-  return driver;
+  if (status === "active") {
+    const Verification = (await import("../../database/models/Verification.model.js")).default;
+    await Verification.findOneAndUpdate(
+      { user: driver.user },
+      { status: "approved" },
+      { upsert: true }
+    );
+  } else if (status === "pending" || status === "suspended") {
+    const Verification = (await import("../../database/models/Verification.model.js")).default;
+    await Verification.findOneAndUpdate(
+      { user: driver.user },
+      { status: status === "pending" ? "pending" : "rejected" }
+    );
+  }
+
+  const updatedDriver = await Driver.findById(driverId).populate("user");
+  return updatedDriver;
 };
 
 const updateDriverAvailability = async (userId, status) => {

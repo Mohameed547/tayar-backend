@@ -119,3 +119,21 @@ export const getMyAssignedShipments = async (req, res, next) => {
         next(err);
     }
 };
+
+export const acceptAssignment = async (req, res, next) => {
+  try {
+    const result = await shipmentService.acceptAssignment(req.params.id, req.user._id);
+    return res.status(200).json(ApiResponse.success(result, "Assignment accepted successfully"));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const rejectAssignment = async (req, res, next) => {
+  try {
+    const result = await shipmentService.rejectAssignment(req.params.id, req.user._id);
+    return res.status(200).json(ApiResponse.success(result, "Assignment rejected successfully"));
+  } catch (err) {
+    next(err);
+  }
+};

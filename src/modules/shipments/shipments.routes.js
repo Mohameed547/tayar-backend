@@ -31,6 +31,16 @@ router.get(
   authorize(ROLES.DRIVER, ROLES.OFFICE),
   Y.getMyAssignedShipments,
 );
+router.patch(
+  "/:id/accept-assignment",
+  authorize(ROLES.DRIVER),
+  Y.acceptAssignment,
+);
+router.patch(
+  "/:id/reject-assignment",
+  authorize(ROLES.DRIVER),
+  Y.rejectAssignment,
+);
 
 router.post(
   "/",

@@ -23,6 +23,11 @@ export const TRANSACTION_PURPOSE = {
   PAYMENT: "Payment",
   DELIVERY_FEE: "DeliveryFee",
   WITHDRAWAL: "Withdrawal",
+  DEPOSIT: "Deposit",
+  REFUND: "Refund",
+  COMMISSION: "Commission",
+  EARNING: "Earning",
+  TRANSFER: "Transfer",
 };
 
 export const GATEWAY = {
@@ -38,6 +43,7 @@ export const TRANSACTION_STATUS = {
   PENDING: "Pending",
   COMPLETED: "Completed",
   FAILED: "Failed",
+  CANCELLED: "Cancelled",
 };
 
 const walletSchema = new Schema(
@@ -54,6 +60,11 @@ const walletSchema = new Schema(
       required: true,
     },
     balance: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    lockedBalance: {
       type: Number,
       default: 0,
       min: 0,
