@@ -85,24 +85,53 @@ const initPaymobWalletPayment = async (amount, payload) => {
         //     currency: "EGP",
         //     integration_id: process.env.PAYMOB_WALLET_INTEGRATION_ID,
         // });
+        // const paymentKeyRes = await axios.post(
+        //     "https://accept.paymob.com/api/acceptance/payment_keys",
+        //     {
+        //         auth_token: authToken,
+        //         amount_cents: amount * 100,
+        //         expiration: 3600,
+        //         order_id: orderId,
+        //         billing_data: { ...},
+        //         currency: "EGP",
+        //         integration_id: process.env.PAYMOB_WALLET_INTEGRATION_ID,
+
+        //         notification_url:
+        //             "https://deliveryhub-production-dca4.up.railway.app/api/wallet/webhook/paymob",
+
+        //         redirection_url:
+        //             "https://your-frontend-domain.com/wallet/payment-result",
+        //     }
+        // );
         const paymentKeyRes = await axios.post(
-            "https://accept.paymob.com/api/acceptance/payment_keys",
-            {
-                auth_token: authToken,
-                amount_cents: amount * 100,
-                expiration: 3600,
-                order_id: orderId,
-                billing_data: { ...},
-                currency: "EGP",
-                integration_id: process.env.PAYMOB_WALLET_INTEGRATION_ID,
-
-                notification_url:
-                    "https://deliveryhub-production-dca4.up.railway.app/api/wallet/webhook/paymob",
-
-                redirection_url:
-                    "https://your-frontend-domain.com/wallet/payment-result",
-            }
-        );
+  "https://accept.paymob.com/api/acceptance/payment_keys",
+  {
+    auth_token: authToken,
+    amount_cents: amount * 100,
+    expiration: 3600,
+    order_id: orderId,
+    billing_data: {
+      apartment: "NA",
+      email: user?.email || "NA",
+      floor: "NA",
+      first_name: user?.fullName?.split(" ")[0] || "NA",
+      street: "NA",
+      building: "NA",
+      phone_number: user?.phone || "NA",
+      shipping_method: "NA",
+      postal_code: "NA",
+      city: "NA",
+      country: "NA",
+      last_name: user?.fullName?.split(" ").slice(1).join(" ") || "NA",
+      state: "NA",
+    },
+    currency: "EGP",
+    integration_id: process.env.PAYMOB_WALLET_INTEGRATION_ID,
+    notification_url:
+      "https://deliveryhub-production-dca4.up.railway.app/api/wallet/webhook/paymob",
+    redirection_url: "https://your-frontend-domain.com/wallet/payment-result",
+  }
+);
         const paymentToken = paymentKeyRes.data.token;
 
         // 4. Get Redirection URL
