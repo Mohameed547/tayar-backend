@@ -429,7 +429,7 @@ const releaseFunds = async (shipmentId) => {
 
         const escrow = await Escrow.findOne({ shipment: shipmentId, status: "held" }).session(session);
         if (!escrow) {
-            console.warn(`No escrow held for shipment ${shipmentId}`);
+            console.warn(`[releaseFunds] No escrow held for shipment ${shipmentId}`);
             return;
         }
 
@@ -470,22 +470,34 @@ const releaseFunds = async (shipmentId) => {
         let officeShare = 0;
         let captainShare = escrow.amount;
 
-        const netAmount = escrow.netAmount; // price - platform fee
+        const netAmount = escrow.netAmount; // price after platform commission
+
+        console.log(`[releaseFunds] shipmentId=${shipmentId} | escrow.amount=${escrow.amount} netAmount=${netAmount} | assignedOffice=${shipment.assignedOffice} | captainPrice=${shipment.captainPrice} | officeDiscountPercentage=${shipment.officeDiscountPercentage}`);
 
         if (shipment.assignedOffice) {
             if (shipment.captainPrice !== undefined && shipment.captainPrice !== null) {
-                captainShare = Math.min(netAmount, shipment.captainPrice);
+                // captainPrice was explicitly set by office when assigning a captain.
+                // officeShare = netAmount - captainPrice (what the office keeps).
+                captainShare = Math.min(netAmount, Number(shipment.captainPrice));
                 officeShare = Math.max(0, netAmount - captainShare);
-            } else {
-                officeShare = Math.round(escrow.amount * 0.1); // Office gets 10% of total
+            } else if (shipment.officeDiscountPercentage && Number(shipment.officeDiscountPercentage) > 0) {
+                // Fallback: derive from stored percentage if captainPrice is missing
+                const officeCommission = Math.round(netAmount * (Number(shipment.officeDiscountPercentage) / 100));
+                officeShare = Math.min(netAmount, officeCommission);
                 captainShare = netAmount - officeShare;
+            } else {
+                // Office assigned but set 0% commission — captain keeps everything
+                captainShare = netAmount;
+                officeShare = 0;
             }
         } else {
             captainShare = netAmount;
         }
 
+        console.log(`[releaseFunds] captainShare=${captainShare} | officeShare=${officeShare}`);
+
         // 4. Pay Captain
-        if (shipment.captain) {
+        if (shipment.captain && captainShare > 0) {
             const captainWallet = await getOrCreateWallet(shipment.captain, "driver", session);
             captainWallet.balance += captainShare;
             await captainWallet.save({ session });
@@ -506,13 +518,15 @@ const releaseFunds = async (shipmentId) => {
                 ],
                 { session },
             );
+            console.log(`[releaseFunds] ✅ Credited captain wallet userId=${shipment.captain}: +${captainShare}`);
         }
 
-        // 5. Pay Office
+        // 5. Pay Office commission
         if (shipment.assignedOffice && officeShare > 0) {
             const OfficeModel = mongoose.model("Office");
             const officeDoc = await OfficeModel.findById(shipment.assignedOffice).session(session);
-            if (officeDoc) {
+            console.log(`[releaseFunds] officeDoc found=${!!officeDoc} | officeDoc.user=${officeDoc?.user}`);
+            if (officeDoc && officeDoc.user) {
                 const officeWallet = await getOrCreateWallet(officeDoc.user, "office", session);
                 officeWallet.balance += officeShare;
                 await officeWallet.save({ session });
@@ -527,13 +541,18 @@ const releaseFunds = async (shipmentId) => {
                             gateway: GATEWAY.INTERNAL,
                             status: TRANSACTION_STATUS.COMPLETED,
                             referenceId,
-                            metadata: { shipmentId, type: "earnings" },
+                            metadata: { shipmentId, type: "commission", captainShare, officeShare },
                             balanceAfter: officeWallet.balance,
                         },
                     ],
                     { session },
                 );
+                console.log(`[releaseFunds] ✅ Credited office wallet userId=${officeDoc.user}: +${officeShare}`);
+            } else {
+                console.warn(`[releaseFunds] ⚠️  Office doc not found or missing user for assignedOffice=${shipment.assignedOffice}`);
             }
+        } else if (shipment.assignedOffice) {
+            console.warn(`[releaseFunds] ⚠️  Office exists but officeShare=0 (captainPrice=${shipment.captainPrice}, officeDiscountPercentage=${shipment.officeDiscountPercentage}). No commission paid.`);
         }
     });
 };

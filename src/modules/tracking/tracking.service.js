@@ -262,7 +262,24 @@ const STATUS_NOTIFICATION_COPY = {
 const initTracking = async (shipmentId, captainId) => {
   const existing = await Tracking.findOne({ shipment: shipmentId });
   if (existing) {
-    throw new ApiError(409, "Tracking already initialized for this shipment");
+    // Tracking record already exists — update the assigned captain (reassign case).
+    // Reset status to ASSIGNED so the new captain can progress through the workflow.
+    existing.captain = captainId;
+    if (existing.status === TRACKING_STATUS.DELIVERED || existing.status === TRACKING_STATUS.CANCELLED) {
+      // Shipment was already closed — do not reopen
+      throw new ApiError(409, "Tracking already initialized for this shipment and cannot be reassigned");
+    }
+    existing.status = TRACKING_STATUS.ASSIGNED;
+    existing.milestones.push({ status: TRACKING_STATUS.ASSIGNED, timestamp: new Date(), note: "Captain reassigned" });
+    await existing.save();
+
+    const driver = await Driver.findOne({ user: captainId });
+    if (driver) {
+      driver.status = "busy";
+      await driver.save();
+    }
+
+    return existing;
   }
 
   const tracking = await Tracking.create({

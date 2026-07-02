@@ -85,25 +85,30 @@ const assignToCaptain = async (officeUserId, shipmentId, captainId, percentage =
         throw ApiError.conflict("Shipment is already assigned. Use reassign instead.");
     }
 
+    const EscrowModel = (await import("../../database/models/Escrow.model.js")).default;
+    const escrow = await EscrowModel.findOne({ shipment: shipment._id });
+
+    // Use escrow.amount as the true base price (guaranteed not null).
+    // Fall back to shipment.price only if escrow doesn't exist yet.
+    const baseAmount = escrow ? escrow.amount : (shipment.price || 0);
+    const netAmount  = escrow ? escrow.netAmount : (baseAmount * 0.9);
+
+    const officeShare = Math.round(baseAmount * (percentage / 100));
+    const captainPrice = Math.max(0, netAmount - officeShare);
+
     shipment.captain = driver.user;
     shipment.officeDiscountPercentage = percentage;
-    const originalPrice = shipment.price || 0;
-    const Escrow = (await import("../../database/models/Escrow.model.js")).default;
-    const escrow = await Escrow.findOne({ shipment: shipment._id });
-    const netAmount = escrow ? escrow.netAmount : (originalPrice * 0.9);
-    const officeShare = originalPrice * (percentage / 100);
-    shipment.captainPrice = Math.max(0, netAmount - officeShare);
+    shipment.captainPrice = captainPrice;
     shipment.captainStatus = "pending";
     await shipment.save();
 
     try {
         const notificationsService = (await import("../notifications/notifications.service.js")).default;
-        // Notify Captain
         await notificationsService.createNotification({
             userId: driver.user,
             type: "captain_assigned",
             title: "New Shipment Assignment Offered",
-            message: `You have been offered shipment #${shipment.trackingNumber} with a payout of EGP ${shipment.captainPrice}. Please accept or reject it.`,
+            message: `You have been offered shipment #${shipment.trackingNumber} with a payout of EGP ${captainPrice}. Please accept or reject it.`,
             relatedShipmentId: shipment._id,
         });
     } catch (err) {
@@ -129,25 +134,29 @@ const reassignToCaptain = async (officeUserId, shipmentId, captainId, percentage
         }
     }
 
+    const EscrowModel = (await import("../../database/models/Escrow.model.js")).default;
+    const escrow = await EscrowModel.findOne({ shipment: shipment._id });
+
+    // Use escrow.amount as the true base price (guaranteed not null).
+    const baseAmount = escrow ? escrow.amount : (shipment.price || 0);
+    const netAmount  = escrow ? escrow.netAmount : (baseAmount * 0.9);
+
+    const officeShare = Math.round(baseAmount * (percentage / 100));
+    const captainPrice = Math.max(0, netAmount - officeShare);
+
     shipment.captain = newDriver.user;
     shipment.officeDiscountPercentage = percentage;
-    const originalPrice = shipment.price || 0;
-    const Escrow = (await import("../../database/models/Escrow.model.js")).default;
-    const escrow = await Escrow.findOne({ shipment: shipment._id });
-    const netAmount = escrow ? escrow.netAmount : (originalPrice * 0.9);
-    const officeShare = originalPrice * (percentage / 100);
-    shipment.captainPrice = Math.max(0, netAmount - officeShare);
+    shipment.captainPrice = captainPrice;
     shipment.captainStatus = "pending";
     await shipment.save();
 
     try {
         const notificationsService = (await import("../notifications/notifications.service.js")).default;
-        // Notify Captain
         await notificationsService.createNotification({
             userId: newDriver.user,
             type: "captain_assigned",
             title: "New Shipment Assignment Offered",
-            message: `You have been offered shipment #${shipment.trackingNumber} with a payout of EGP ${shipment.captainPrice}. Please accept or reject it.`,
+            message: `You have been offered shipment #${shipment.trackingNumber} with a payout of EGP ${captainPrice}. Please accept or reject it.`,
             relatedShipmentId: shipment._id,
         });
     } catch (err) {

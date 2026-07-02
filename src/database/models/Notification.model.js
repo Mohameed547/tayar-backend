@@ -8,6 +8,8 @@ export const NOTIFICATION_TYPE = {
     OFFER_RECEIVED: "offer_received",
     NEW_SHIPMENT: "new_shipment",
     CAPTAIN_ASSIGNED: "captain_assigned",
+    CAPTAIN_ACCEPTED: "captain_accepted",
+    CAPTAIN_REJECTED: "captain_rejected",
     DELIVERED: "delivered",
     CANCELLED: "cancelled",
     DISPUTE_OPENED: "dispute_opened",
