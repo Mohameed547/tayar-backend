@@ -37,7 +37,7 @@ const initPaymobWalletPayment = async (amount, payload) => {
         if (!process.env.PAYMOB_API_KEY || !process.env.PAYMOB_WALLET_INTEGRATION_ID) {
             console.warn("Paymob environment variables not set. Falling back to sandbox/simulated payment.");
             const orderId = `SIM-PM-${Date.now()}`;
-            
+
             // Execute confirmTopUp in background to simulate successful gateway webhook callback
             setTimeout(async () => {
                 try {
@@ -71,20 +71,38 @@ const initPaymobWalletPayment = async (amount, payload) => {
         const orderId = orderRes.data.id;
 
         // 3. Create Payment Key
-        const paymentKeyRes = await axios.post("https://accept.paymob.com/api/acceptance/payment_keys", {
-            auth_token: authToken,
-            amount_cents: amount * 100,
-            expiration: 3600,
-            order_id: orderId,
-            billing_data: {
-                apartment: "NA", floor: "NA", street: "NA", building: "NA", postal_code: "NA", city: "Cairo", country: "EG",
-                email: payload.metadata?.email || "customer@app.com",
-                first_name: payload.metadata?.firstName || "Wallet", last_name: payload.metadata?.lastName || "User",
-                phone_number: payload.metadata?.phone || "01000000000",
-            },
-            currency: "EGP",
-            integration_id: process.env.PAYMOB_WALLET_INTEGRATION_ID,
-        });
+        // const paymentKeyRes = await axios.post("https://accept.paymob.com/api/acceptance/payment_keys", {
+        //     auth_token: authToken,
+        //     amount_cents: amount * 100,
+        //     expiration: 3600,
+        //     order_id: orderId,
+        //     billing_data: {
+        //         apartment: "NA", floor: "NA", street: "NA", building: "NA", postal_code: "NA", city: "Cairo", country: "EG",
+        //         email: payload.metadata?.email || "customer@app.com",
+        //         first_name: payload.metadata?.firstName || "Wallet", last_name: payload.metadata?.lastName || "User",
+        //         phone_number: payload.metadata?.phone || "01000000000",
+        //     },
+        //     currency: "EGP",
+        //     integration_id: process.env.PAYMOB_WALLET_INTEGRATION_ID,
+        // });
+        const paymentKeyRes = await axios.post(
+            "https://accept.paymob.com/api/acceptance/payment_keys",
+            {
+                auth_token: authToken,
+                amount_cents: amount * 100,
+                expiration: 3600,
+                order_id: orderId,
+                billing_data: { ...},
+                currency: "EGP",
+                integration_id: process.env.PAYMOB_WALLET_INTEGRATION_ID,
+
+                notification_url:
+                    "https://deliveryhub-production-dca4.up.railway.app/api/wallet/webhook/paymob",
+
+                redirection_url:
+                    "https://your-frontend-domain.com/wallet/payment-result",
+            }
+        );
         const paymentToken = paymentKeyRes.data.token;
 
         // 4. Get Redirection URL
@@ -215,7 +233,7 @@ const handleTopUp = async (userId, role, { amount, gateway, referenceId, metadat
                 providerReference: mockRef,
                 redirectUrl: "/wallet?status=success",
             };
-            
+
             // Simulating successful gateway callback
             setTimeout(async () => {
                 try {
