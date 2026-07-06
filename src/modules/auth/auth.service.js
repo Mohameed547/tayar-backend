@@ -1,4 +1,3 @@
-// TODO: src/modules/auth/auth.service.js — لسه فاضي، هنملاه مع بعض
 import crypto from "crypto";
 import mongoose from "mongoose";
 import nodemailer from "nodemailer";

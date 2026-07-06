@@ -142,6 +142,18 @@ const createShipment = async (customerId, body) => {
     return shipment;
 };
 
+const attachCaptainRating = async (shipment) => {
+    if (!shipment) return null;
+    const shipmentObj = shipment.toObject ? shipment.toObject() : shipment;
+    if (shipmentObj.captain && shipmentObj.captain._id) {
+        const driver = await Driver.findOne({ user: shipmentObj.captain._id });
+        if (driver) {
+            shipmentObj.captain.rating = driver.rating;
+        }
+    }
+    return shipmentObj;
+};
+
 const getShipmentsByCustomer = async (
     customerId,
     statusFilter,
@@ -162,7 +174,11 @@ const getShipmentsByCustomer = async (
         Shipment.countDocuments(query),
     ]);
 
-    return { shipments, total, page: Number(page) || 1, limit: take };
+    const enrichedShipments = await Promise.all(
+        shipments.map((s) => attachCaptainRating(s)),
+    );
+
+    return { shipments: enrichedShipments, total, page: Number(page) || 1, limit: take };
 };
 
 const getShipmentById = async (id, customerId) => {
@@ -176,7 +192,7 @@ const getShipmentById = async (id, customerId) => {
         .populate("captain", "fullName phone profileImage")
         .populate("selectedOfferId");
 
-    return shipment;
+    return await attachCaptainRating(shipment);
 };
 
 const cancelShipment = async (id, customerId) => {

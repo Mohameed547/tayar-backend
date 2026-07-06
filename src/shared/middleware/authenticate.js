@@ -1,4 +1,3 @@
-// TODO: src/shared/middleware/authenticate.js — لسه فاضي، هنملاه مع بعض
 import jwt from "jsonwebtoken";
 import { ENV } from "../../config/env.js";
 import ApiError from "../utils/ApiError.js";

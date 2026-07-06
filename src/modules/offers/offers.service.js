@@ -7,6 +7,67 @@ import { SHIPMENT_STATUS } from "../../shared/constants/shipmentStatus.js";
 import trackingService from "../tracking/tracking.service.js";
 import Escrow from "../../database/models/Escrow.model.js";
 import { getCommissionRate } from "../../shared/utils/platformConfig.js";
+import Review from "../../database/models/Review.model.js";
+
+const parseEstimatedDeliveryToMinutes = (str) => {
+  if (!str) return 0;
+  const s = str.trim().toLowerCase();
+  if (s === "immediate" || s === "فوري" || s === "") return 0;
+  
+  let totalMinutes = 0;
+  
+  const matches = s.matchAll(/(\d+)\s*(day|hour|minute)/g);
+  for (const match of matches) {
+    const val = parseInt(match[1], 10);
+    const unit = match[2];
+    if (unit.startsWith("day")) {
+      totalMinutes += val * 24 * 60;
+    } else if (unit.startsWith("hour")) {
+      totalMinutes += val * 60;
+    } else if (unit.startsWith("minute")) {
+      totalMinutes += val;
+    }
+  }
+  
+  if (s.includes("day") && !s.match(/\d+\s*day/)) totalMinutes += 24 * 60;
+  if (s.includes("hour") && !s.match(/\d+\s*hour/)) totalMinutes += 60;
+  if (s.includes("minute") && !s.match(/\d+\s*minute/)) totalMinutes += 1;
+  
+  if (s.includes("يومين")) {
+    totalMinutes += 2 * 24 * 60;
+  } else if (s.includes("يوم") || s.includes("أيام")) {
+    const dayMatch = s.match(/(\d+)\s*أيام/) || s.match(/(\d+)\s*يوم/);
+    if (dayMatch) {
+      totalMinutes += parseInt(dayMatch[1], 10) * 24 * 60;
+    } else if (s.includes("يوم")) {
+      totalMinutes += 24 * 60;
+    }
+  }
+  
+  if (s.includes("ساعتين")) {
+    totalMinutes += 2 * 60;
+  } else if (s.includes("ساعة") || s.includes("ساعات")) {
+    const hourMatch = s.match(/(\d+)\s*ساعات/) || s.match(/(\d+)\s*ساعة/);
+    if (hourMatch) {
+      totalMinutes += parseInt(hourMatch[1], 10) * 60;
+    } else if (s.includes("ساعة")) {
+      totalMinutes += 60;
+    }
+  }
+  
+  if (s.includes("دقيقتين")) {
+    totalMinutes += 2;
+  } else if (s.includes("دقيقة") || s.includes("دقائق")) {
+    const minMatch = s.match(/(\d+)\s*دقائق/) || s.match(/(\d+)\s*دقيقة/);
+    if (minMatch) {
+      totalMinutes += parseInt(minMatch[1], 10);
+    } else if (s.includes("دقيقة")) {
+      totalMinutes += 1;
+    }
+  }
+  
+  return totalMinutes;
+};
 
 const getShipmentOffers = async (userId, shipmentId) => {
   const query = shipmentId.match(/^[0-9a-fA-F]{24}$/)
@@ -28,21 +89,42 @@ const getShipmentOffers = async (userId, shipmentId) => {
       const offerObj = offer.toObject();
       let providerName = "Provider";
       let providerAvatar = null;
-      let rating = 4.8;
-      let reviewCount = 120;
+      let rating = 5.0;
+      let reviewCount = 0;
 
       if (offer.offererType === "Driver") {
         const driver = await Driver.findById(offer.offerer).populate("user", "fullName profileImage");
         if (driver && driver.user) {
           providerName = driver.user.fullName;
           providerAvatar = driver.user.profileImage;
-          rating = driver.rating || 4.8;
+
+          // Fetch actual rating and review count from Review model
+          const reviews = await Review.find({ reviewee: driver.user._id });
+          if (reviews.length > 0) {
+            rating = Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10;
+            reviewCount = reviews.length;
+          } else {
+            rating = driver.rating || 5.0;
+            reviewCount = 0;
+          }
         }
       } else if (offer.offererType === "Office") {
         const office = await Office.findById(offer.offerer).populate("user", "fullName profileImage");
         if (office) {
           providerName = office.businessName || (office.user && office.user.fullName) || "Logistics Office";
           providerAvatar = office.user ? office.user.profileImage : null;
+
+          if (office.user) {
+            // Fetch actual rating and review count from Review model
+            const reviews = await Review.find({ reviewee: office.user._id });
+            if (reviews.length > 0) {
+              rating = Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10;
+              reviewCount = reviews.length;
+            } else {
+              rating = 5.0;
+              reviewCount = 0;
+            }
+          }
         }
       }
 
@@ -87,6 +169,12 @@ const resolveOfferer = async (userId, role) => {
 const createOffer = async (userId, role, offerData) => {
   const { shipmentId, price, estimatedDelivery, coverage, description } =
     offerData;
+
+  const totalMinutes = parseEstimatedDeliveryToMinutes(estimatedDelivery);
+  if (totalMinutes <= 0) {
+    throw new ApiError(400, "Estimated delivery time must be greater than zero");
+  }
+
   const { offererType, offererId, status } = await resolveOfferer(userId, role);
 
   if (status === "offline") {

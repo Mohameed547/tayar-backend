@@ -250,19 +250,29 @@ const getRecentUsers = async () => {
 
     if (users.length === 0) return [];
 
-    const customerDriverIds = users
-        .filter((u) => u.role !== "office")
+    const customerIds = users
+        .filter((u) => u.role === "customer")
+        .map((u) => u._id);
+
+    const driverIds = users
+        .filter((u) => u.role === "driver")
         .map((u) => u._id);
 
     const officeUserIds = users
         .filter((u) => u.role === "office")
         .map((u) => u._id);
 
-    const [orderCounts, offices] = await Promise.all([
-        customerDriverIds.length
+    const [customerOrderCounts, driverOrderCounts, offices] = await Promise.all([
+        customerIds.length
             ? Shipment.aggregate([
-                  { $match: { customer: { $in: customerDriverIds } } },
+                  { $match: { customer: { $in: customerIds } } },
                   { $group: { _id: "$customer", count: { $sum: 1 } } },
+              ])
+            : [],
+        driverIds.length
+            ? Shipment.aggregate([
+                  { $match: { captain: { $in: driverIds } } },
+                  { $group: { _id: "$captain", count: { $sum: 1 } } },
               ])
             : [],
         officeUserIds.length
@@ -272,8 +282,12 @@ const getRecentUsers = async () => {
             : [],
     ]);
 
-    const ordersByUser = Object.fromEntries(
-        orderCounts.map((o) => [o._id.toString(), o.count]),
+    const ordersByCustomer = Object.fromEntries(
+        customerOrderCounts.map((o) => [o._id.toString(), o.count]),
+    );
+
+    const ordersByDriver = Object.fromEntries(
+        driverOrderCounts.map((o) => [o._id.toString(), o.count]),
     );
 
     // map User._id -> Office._id, since assignedOffice points to the Office doc
@@ -294,12 +308,15 @@ const getRecentUsers = async () => {
     );
 
     const getOrdersForUser = (u) => {
+        const userIdStr = u._id.toString();
         if (u.role === "office") {
-            const officeId = officeIdByUserId[u._id.toString()];
+            const officeId = officeIdByUserId[userIdStr];
             if (!officeId) return 0;
             return ordersByOffice[officeId.toString()] ?? 0;
+        } else if (u.role === "driver") {
+            return ordersByDriver[userIdStr] ?? 0;
         }
-        return ordersByUser[u._id.toString()] ?? 0;
+        return ordersByCustomer[userIdStr] ?? 0;
     };
 
     return users.map((u) => ({

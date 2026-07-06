@@ -2,30 +2,12 @@ import Verification, {
     VERIFICATION_STATUS,
 } from "../../database/models/Verification.model.js";
 import ApiError from "../../shared/utils/ApiError.js";
-import { v2 as cloudinary } from "cloudinary";
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || "dwjjresyx",
-  api_key: process.env.CLOUDINARY_API_KEY || "119271979637778",
-  api_secret: process.env.CLOUDINARY_API_SECRET || "CuR-DCDvOcR5OcPCn3oX_FAJIKs",
-});
-
-const uploadToCloudinary = async (base64Str) => {
-  try {
-    const res = await cloudinary.uploader.upload(base64Str, {
-      folder: "deliveryhub_verification",
-    });
-    return res.secure_url;
-  } catch (error) {
-    console.error("Cloudinary upload failed:", error);
-    throw new ApiError(500, "Failed to upload document to Cloudinary");
-  }
-};
+import { uploadToCloudinary } from "../../shared/utils/cloudinary.js";
 
 const uploadDocument = async (userId, { documentType, documentUrl }) => {
     let finalUrl = documentUrl;
     if (documentUrl && documentUrl.startsWith("data:image/")) {
-        finalUrl = await uploadToCloudinary(documentUrl);
+        finalUrl = await uploadToCloudinary(documentUrl, "deliveryhub_verification");
     }
 
     let verification = await Verification.findOne({ user: userId });

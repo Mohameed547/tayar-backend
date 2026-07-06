@@ -165,45 +165,25 @@ const getOfficeEarnings = async (officeUserId) => {
     const withdrawn = withdrawalAggregation[0]?.total || 0;
 
     // 3. Platform fees for shipments assigned to this office
-    const platformFeesAggregation = await Escrow.aggregate([
-        {
-            $lookup: {
-                from: "escrows",
-                localField: "_id",
-                foreignField: "shipment",
-                as: "escrowDoc"
-            }
-        },
-        {
-            $lookup: {
-                from: "shipments",
-                let: { id: "$_id" },
-                pipeline: [
-                    { $match: { $expr: { $eq: ["$_id", "$$id"] }, assignedOffice: office._id } }
-                ],
-                as: "shipmentDoc"
-            }
-        },
-        {
-            $match: {
-                "shipmentDoc.0": { $exists: true }
-            }
-        },
-        {
-            $unwind: "$escrowDoc"
-        },
-        {
-            $match: {
-                "escrowDoc.status": "released"
-            }
-        },
-        {
-            $group: {
-                _id: null,
-                total: { $sum: "$escrowDoc.commissionAmount" }
-            }
-        }
-    ]);
+    const officeShipments = await Shipment.find({ assignedOffice: office._id }).select("_id").lean();
+    const officeShipmentIds = officeShipments.map((s) => s._id);
+
+    const platformFeesAggregation = officeShipmentIds.length
+        ? await Escrow.aggregate([
+              {
+                  $match: {
+                      shipment: { $in: officeShipmentIds },
+                      status: "released",
+                  },
+              },
+              {
+                  $group: {
+                      _id: null,
+                      total: { $sum: "$commissionAmount" },
+                  },
+              },
+          ])
+        : [];
 
     const platformFees = platformFeesAggregation[0]?.total || 0;
 

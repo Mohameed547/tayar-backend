@@ -86,30 +86,27 @@ const getDisputes = async ({ status, page = 1, limit = 20 }) => {
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
+    const openTicketsList = await Support.find({ status: "sent" }).select("relatedShipment").lean();
+    const openShipmentIds = openTicketsList.map((t) => t.relatedShipment).filter(Boolean);
+
     const [openCount, resolvedThisMonth, amountAtRiskAgg, urgentCount] =
         await Promise.all([
-            Support.countDocuments({ status: "sent" }),
+            Promise.resolve(openTicketsList.length),
             Support.countDocuments({
                 status: "resolved",
                 resolvedAt: { $gte: oneMonthAgo },
             }),
-            Shipment.aggregate([
-                {
-                    $lookup: {
-                        from: "supports",
-                        localField: "_id",
-                        foreignField: "relatedShipment",
-                        as: "tickets",
-                    },
-                },
-                { $match: { "tickets.status": "sent" } },
-                {
-                    $group: {
-                        _id: null,
-                        total: { $sum: "$estimatedPriceMax" },
-                    },
-                },
-            ]),
+            openShipmentIds.length
+                ? Shipment.aggregate([
+                      { $match: { _id: { $in: openShipmentIds } } },
+                      {
+                          $group: {
+                              _id: null,
+                              total: { $sum: "$estimatedPriceMax" },
+                          },
+                      },
+                  ])
+                : Promise.resolve([]),
             Support.countDocuments({
                 status: "sent",
                 createdAt: { $lte: new Date(Date.now() - 24 * 36e5) },
