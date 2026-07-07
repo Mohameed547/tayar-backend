@@ -1,7 +1,7 @@
 {
-    "name": "deliverhub-backend",
+    "name": "tayar-backend",
     "version": "1.0.0",
-    "description": "DeliverHub backend - JavaScript (Node.js / Express)",
+    "description": "Tayar backend - JavaScript (Node.js / Express)",
     "main": "src/server.js",
     "type": "module",
     "scripts": {

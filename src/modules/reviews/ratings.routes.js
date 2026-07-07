@@ -1,5 +1,5 @@
 import { Router } from "express";
-import * as reviewsService from "../reviews/reviews.service.js";
+import * as reviewsService from "./reviews.service.js";
 import { authenticate } from "../../shared/middleware/authenticate.js";
 import { authorize } from "../../shared/middleware/authorize.js";
 import { ROLES } from "../../shared/constants/roles.js";
