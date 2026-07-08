@@ -478,8 +478,8 @@ const lockFunds = async (customerId, amount, shipmentId) => {
     });
 };
 
-const releaseFunds = async (shipmentId) => {
-    return withWalletTransaction(async (session) => {
+const releaseFunds = async (shipmentId, externalSession = null) => {
+    const runWork = async (session) => {
         const Escrow = mongoose.model("Escrow");
         const Shipment = mongoose.model("Shipment");
 
@@ -610,7 +610,12 @@ const releaseFunds = async (shipmentId) => {
         } else if (shipment.assignedOffice) {
             console.warn(`[releaseFunds] ⚠️  Office exists but officeShare=0 (captainPrice=${shipment.captainPrice}, officeDiscountPercentage=${shipment.officeDiscountPercentage}). No commission paid.`);
         }
-    });
+    };
+
+    if (externalSession) {
+        return runWork(externalSession);
+    }
+    return withWalletTransaction(runWork);
 };
 
 const refundFunds = async (shipmentId) => {

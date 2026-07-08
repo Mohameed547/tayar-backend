@@ -256,6 +256,30 @@ const updateShipmentStatus = async (id, status) => {
     if (!shipment) throw new ApiError(404, "Shipment not found");
     shipment.status = status;
     await shipment.save();
+
+    if (status === "cancelled") {
+        await walletService.refundFunds(id).catch((err) => {
+            console.error(
+                "Failed to refund escrow funds on admin cancellation:",
+                err,
+            );
+        });
+
+        try {
+            const Tracking = (await import("../../database/models/Tracking.model.js")).default;
+            await Tracking.findOneAndUpdate({ shipment: id }, { status: "cancelled" });
+            
+            const { getIO } = await import("../../config/socket.js");
+            getIO().to(`shipment:${id}`).emit("statusUpdate", {
+                shipmentId: id,
+                status: "cancelled",
+                timestamp: new Date(),
+            });
+        } catch (err) {
+            console.error("Failed to update tracking status or emit socket event on admin cancel:", err);
+        }
+    }
+
     return shipment;
 };
 

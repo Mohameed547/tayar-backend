@@ -46,22 +46,41 @@ export const postStatusUpdate = async (req, res, next) => {
     try {
         const captainId = req.user._id;
         const { shipmentId } = req.params;
-        const { status, note } = req.body;
+        const { status, note, otpCode, recipientName, signatureImage, packageImage, lat, lng } = req.body;
 
         const tracking = await trackingService.updateStatus(shipmentId, captainId, {
             status,
             note,
+            otpCode,
+            recipientName,
+            signatureImage,
+            packageImage,
+            lat,
+            lng,
         });
 
-        // try {
-        //     getIO()
-        //         .to(`shipment:${shipmentId}`)
-        //         .emit("shipmentStatusUpdate", { shipmentId, status: tracking.status, note });
-        // } catch {
-        //     // Socket layer may not be initialized (e.g. in tests); REST response still succeeds.
-        // }
-
         return res.status(200).json(ApiResponse.success(tracking, "Status updated"));
+    } catch (err) {
+        next(err);
+    }
+};
+
+export const postGenerateOTP = async (req, res, next) => {
+    try {
+        const { shipmentId } = req.params;
+        const result = await trackingService.generateNewOTP(shipmentId);
+        return res.status(200).json(ApiResponse.success(result, "OTP generated successfully"));
+    } catch (err) {
+        next(err);
+    }
+};
+
+export const postVerifyOTP = async (req, res, next) => {
+    try {
+        const { shipmentId } = req.params;
+        const { otpCode } = req.body;
+        const result = await trackingService.verifyOTP(shipmentId, otpCode);
+        return res.status(200).json(ApiResponse.success(result, "OTP verified successfully"));
     } catch (err) {
         next(err);
     }

@@ -7,8 +7,15 @@ import {
     shipmentIdParamSchema,
     locationPingSchema,
     statusUpdateSchema,
+    verifyOTPSchema,
 } from "./tracking.validation.js";
-import { getTracking, postLocationPing, postStatusUpdate } from "./tracking.controller.js";
+import {
+    getTracking,
+    postLocationPing,
+    postStatusUpdate,
+    postGenerateOTP,
+    postVerifyOTP,
+} from "./tracking.controller.js";
 
 import { checkVerified } from "../../shared/middleware/checkVerified.js";
 
@@ -34,6 +41,19 @@ router.post(
     validate(shipmentIdParamSchema, "params"),
     validate(statusUpdateSchema, "body"),
     postStatusUpdate
+);
+
+router.post(
+    "/:shipmentId/otp/generate",
+    validate(shipmentIdParamSchema, "params"),
+    postGenerateOTP
+);
+
+router.post(
+    "/:shipmentId/otp/verify",
+    validate(shipmentIdParamSchema, "params"),
+    validate(verifyOTPSchema, "body"),
+    postVerifyOTP
 );
 
 export default router;

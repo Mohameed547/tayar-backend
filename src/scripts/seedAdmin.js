@@ -5,10 +5,10 @@ import User from "../database/models/User.model.js";
 const run = async () => {
   await mongoose.connect(ENV.MONGO_URI);
 
-  const email = process.env.SEED_ADMIN_EMAIL || "admin@deliverhub.com";
-  const password = process.env.SEED_ADMIN_PASSWORD || "ChangeMe123!";
-  const fullName = process.env.SEED_ADMIN_NAME || "DeliverHub Admin";
-  const phone = process.env.SEED_ADMIN_PHONE || "01000000000";
+  const email = process.env.SEED_ADMIN_EMAIL;
+  const password = process.env.SEED_ADMIN_PASSWORD;
+  const fullName = process.env.SEED_ADMIN_NAME ;
+  const phone = process.env.SEED_ADMIN_PHONE ;
 
   const existing = await User.findOne({ email });
   if (existing) {
