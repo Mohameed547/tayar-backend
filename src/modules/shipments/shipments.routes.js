@@ -49,7 +49,11 @@ router.post(
   Y.createShipment,
 );
 router.get("/", authorize(ROLES.CUSTOMER), Y.getMyShipments);
-router.get("/:id", authorize(ROLES.CUSTOMER), Y.getShipmentById);
+router.get(
+  "/:id",
+  authorize(ROLES.CUSTOMER, ROLES.DRIVER, ROLES.OFFICE, ROLES.ADMIN),
+  Y.getShipmentById
+);
 router.patch("/:id/cancel", authorize(ROLES.CUSTOMER), Y.cancelShipment);
 
 export default router;

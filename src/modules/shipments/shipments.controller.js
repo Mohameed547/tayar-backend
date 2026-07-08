@@ -37,11 +37,31 @@ export const getMyShipments = async (req, res, next) => {
 export const getShipmentById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const customerId = req.user._id;
+    const userId = req.user._id;
+    const userRole = req.user.role;
 
+    // Only restrict query by customerId if user is a customer
+    const customerId = userRole === "customer" ? userId : null;
     const shipment = await shipmentService.getShipmentById(id, customerId);
 
     if (!shipment) throw new ApiError(404, "Shipment not found");
+
+    // Perform authorization check for driver / office roles
+    if (userRole === "driver") {
+      const isCaptain = shipment.captain && String(shipment.captain._id || shipment.captain) === String(userId);
+      const isPending = shipment.status === "pending_offers";
+      if (!isCaptain && !isPending) {
+        throw new ApiError(403, "You are not authorized to view this shipment");
+      }
+    } else if (userRole === "office") {
+      const OfficeModel = (await import("../../database/models/Office.js")).default;
+      const office = await OfficeModel.findOne({ user: userId });
+      const isOfficeAssigned = office && shipment.assignedOffice && String(shipment.assignedOffice) === String(office._id);
+      const isPending = shipment.status === "pending_offers";
+      if (!isOfficeAssigned && !isPending) {
+        throw new ApiError(403, "You are not authorized to view this shipment");
+      }
+    }
 
     return res.status(200).json(ApiResponse.success(shipment));
   } catch (err) {

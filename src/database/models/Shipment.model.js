@@ -139,6 +139,94 @@ const shipmentSchema = new mongoose.Schema(
       enum: ["pending", "accepted", "rejected"],
       default: null,
     },
+
+    proofOfDelivery: {
+      otpCode: {
+        type: String,
+        default: null,
+      },
+      recipientName: {
+        type: String,
+        default: null,
+      },
+      signatureImage: {
+        type: String,
+        default: null,
+      },
+      packageImage: {
+        type: String,
+        default: null,
+      },
+      verifiedAt: {
+        type: Date,
+        default: null,
+      },
+    },
+
+    deliveryVerification: {
+      otpHash: {
+        type: String,
+        default: null,
+      },
+      expiresAt: {
+        type: Date,
+        default: null,
+      },
+      attempts: {
+        type: Number,
+        default: 0,
+      },
+      verified: {
+        type: Boolean,
+        default: false,
+      },
+      verifiedAt: {
+        type: Date,
+        default: null,
+      },
+      photoUrl: {
+        type: String,
+        default: null,
+      },
+      photoUploadedAt: {
+        type: Date,
+        default: null,
+      },
+    },
+
+    captainCurrentLocation: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point",
+      },
+      coordinates: {
+        type: [Number],
+        default: [0, 0],
+      },
+    },
+
+    deliveryDistance: {
+      type: Number,
+      default: null,
+    },
+
+    deliveryLogs: [
+      {
+        status: {
+          type: String,
+          required: true,
+        },
+        timestamp: {
+          type: Date,
+          default: Date.now,
+        },
+        note: {
+          type: String,
+          default: null,
+        },
+      },
+    ],
   },
   {
     timestamps: true,
