@@ -10,11 +10,14 @@ app.use((req, res, next) => {
   next();
 });
 // CORS
+// CORS
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:3001",
   "http://localhost:5173",
-  process.env.CLIENT_ORIGIN,
+  ...(process.env.CLIENT_ORIGINS
+    ? process.env.CLIENT_ORIGINS.split(",").map((o) => o.trim())
+    : []),
 ].filter(Boolean);
 
 app.use(
