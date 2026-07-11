@@ -18,6 +18,7 @@ const ROLE_TO_USER_TYPE = {
     customer: USER_TYPE.CUSTOMER,
     driver: USER_TYPE.DRIVER,
     office: USER_TYPE.OFFICE,
+    admin: USER_TYPE.CUSTOMER,
 };
 
 const mapRoleToUserType = (role) => {

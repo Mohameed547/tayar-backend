@@ -48,7 +48,7 @@ router.post(
   validate(createShipmentSchema),
   Y.createShipment,
 );
-router.get("/", authorize(ROLES.CUSTOMER), Y.getMyShipments);
+router.get("/", authorize(ROLES.CUSTOMER, ROLES.ADMIN), Y.getMyShipments);
 router.get(
   "/:id",
   authorize(ROLES.CUSTOMER, ROLES.DRIVER, ROLES.OFFICE, ROLES.ADMIN),

@@ -4,6 +4,7 @@ import { ENV } from "./env.js";
 import User from "../database/models/User.model.js";
 
 let io;
+const onlineUsers = new Map();
 
 export const initSocket = (httpServer) => {
   io = new Server(httpServer, {
@@ -40,15 +41,91 @@ export const initSocket = (httpServer) => {
     }
   });
 
-  io.on("connection", (socket) => {
+  io.on("connection", async (socket) => {
+    const userId = socket.user._id.toString();
+    if (!onlineUsers.has(userId)) {
+      onlineUsers.set(userId, new Set());
+    }
+    onlineUsers.get(userId).add(socket.id);
+
+    // Notify all active sockets about the connection change
+    io.emit("user:statusChanged", { userId, status: "online" });
+
+    // Handle initial online status checks
+    socket.on("checkUserStatus", (targetUserId, callback) => {
+      const isOnline = onlineUsers.has(targetUserId) && onlineUsers.get(targetUserId).size > 0;
+      if (typeof callback === "function") {
+        callback({ userId: targetUserId, status: isOnline ? "online" : "offline" });
+      }
+    });
+
+    socket.on("disconnect", () => {
+      const uId = socket.user._id.toString();
+      if (onlineUsers.has(uId)) {
+        const sockets = onlineUsers.get(uId);
+        sockets.delete(socket.id);
+        if (sockets.size === 0) {
+          onlineUsers.delete(uId);
+          io.emit("user:statusChanged", { userId: uId, status: "offline" });
+        }
+      }
+    });
+
+    // 1. Join user room
     socket.join(`user:${socket.user._id}`);
+
+    // 2. Join role room
+    socket.join(`role:${socket.user.role}`);
+
+    // 3. Join office room if applicable
+    try {
+      if (socket.user.role === "office") {
+        const OfficeModel = (await import("../database/models/Office.js")).default;
+        const office = await OfficeModel.findOne({ user: socket.user._id });
+        if (office) {
+          socket.join(`office:${office._id}`);
+          console.log(`Socket ${socket.id} (Office) joined office room office:${office._id}`);
+        }
+      } else if (socket.user.role === "driver") {
+        const DriverModel = (await import("../database/models/Driver.js")).default;
+        const driver = await DriverModel.findOne({ user: socket.user._id });
+        if (driver && driver.officeId) {
+          socket.join(`office:${driver.officeId}`);
+          console.log(`Socket ${socket.id} (Driver) joined office room office:${driver.officeId}`);
+        }
+      }
+    } catch (err) {
+      console.error("Error joining office room on connection:", err.message);
+    }
 
     socket.on("joinShipment", (shipmentId) => {
       socket.join(`shipment:${shipmentId}`);
+      console.log(`Socket ${socket.id} joined shipment room shipment:${shipmentId}`);
     });
 
     socket.on("leaveShipment", (shipmentId) => {
       socket.leave(`shipment:${shipmentId}`);
+      console.log(`Socket ${socket.id} left shipment room shipment:${shipmentId}`);
+    });
+
+    socket.on("joinOffice", (officeId) => {
+      socket.join(`office:${officeId}`);
+      console.log(`Socket ${socket.id} joined office room office:${officeId}`);
+    });
+
+    socket.on("leaveOffice", (officeId) => {
+      socket.leave(`office:${officeId}`);
+      console.log(`Socket ${socket.id} left office room office:${officeId}`);
+    });
+
+    socket.on("joinRole", (role) => {
+      socket.join(`role:${role}`);
+      console.log(`Socket ${socket.id} joined role room role:${role}`);
+    });
+
+    socket.on("leaveRole", (role) => {
+      socket.leave(`role:${role}`);
+      console.log(`Socket ${socket.id} left role room role:${role}`);
     });
 
     // Captain emits live GPS coordinates while en route; broadcast to

@@ -4,7 +4,7 @@ import { ENV } from "../../config/env.js";
 export function issueTokenPair(payload) {
   const accessToken = jwt.sign(payload, ENV.JWT_SECRET, { expiresIn: "15m" });
   const refreshToken = jwt.sign(payload, ENV.JWT_REFRESH_SECRET, {
-    expiresIn: "7d",
+    expiresIn: "30d",
   });
   return { accessToken, refreshToken };
 }

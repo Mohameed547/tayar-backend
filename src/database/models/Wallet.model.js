@@ -82,6 +82,21 @@ const walletSchema = new Schema(
   { timestamps: true },
 );
 
+walletSchema.post("save", async function (doc) {
+  try {
+    const { getIO } = await import("../../config/socket.js");
+    const io = getIO();
+    if (io) {
+      io.to(`user:${doc.userId}`).emit("walletUpdate", {
+        balance: doc.balance,
+        lockedBalance: doc.lockedBalance,
+      });
+    }
+  } catch (err) {
+    console.error("Failed to emit walletUpdate on post-save:", err.message);
+  }
+});
+
 walletSchema.index({ userType: 1 });
 
 const transactionSchema = new Schema(
