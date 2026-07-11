@@ -1,3 +1,4 @@
+import "./config/mongoose-plugins.js";
 import http from "http";
 import app from "./app.js";
 import { connectDB } from "./config/database.js";

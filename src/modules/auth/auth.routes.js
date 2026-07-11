@@ -15,6 +15,7 @@ router.post(
 );
 router.post("/login", authLimiter, validate(schemas.login), controller.login);
 router.post("/refresh", validate(schemas.refreshToken), controller.refresh);
+router.post("/refresh-token", validate(schemas.refreshToken), controller.refreshTokenEndpoint);
 router.post(
   "/logout",
   authenticate,

@@ -29,7 +29,7 @@ export const login = Joi.object({
 });
 
 export const refreshToken = Joi.object({
-    refreshToken: Joi.string().required(),
+    refreshToken: Joi.string().optional(),
 });
 
 export const verifyOtp = Joi.object({
