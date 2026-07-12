@@ -13,7 +13,6 @@ export const createCaptainSchema = Joi.object({
     phone: Joi.string().pattern(phonePattern).required().messages({
         "string.pattern.base": "Phone must be a valid Egyptian mobile number (e.g. 01012345678)",
     }),
-    password: Joi.string().min(8).max(128).optional(),
     vehicleType: Joi.string().valid("motorcycle", "car", "van", "truck").required(),
     plateNumber: Joi.string().trim().required(),
 });
@@ -33,10 +32,30 @@ export const captainStatusSchema = Joi.object({
 
 export const captainListQuerySchema = Joi.object({
     status: Joi.string().valid(...Object.values(CAPTAIN_STATUS)).optional(),
+    relationshipStatus: Joi.string().valid("active", "suspended", "all").optional(),
+    search: Joi.string().trim().allow("").optional(),
     page: Joi.number().integer().min(1).optional(),
     limit: Joi.number().integer().min(1).max(50).optional(),
 });
 
+
 export const updateOfficeAvailabilitySchema = Joi.object({
     status: Joi.string().valid("available", "offline").required(),
+});
+
+export const inviteCaptainSchema = Joi.object({
+    email: Joi.string().email().optional(),
+    phone: Joi.string().pattern(phonePattern).optional().messages({
+        "string.pattern.base": "Phone must be a valid Egyptian mobile number (e.g. 01012345678)",
+    }),
+    captainId: Joi.string().hex().length(24).optional(),
+}).or("email", "phone", "captainId");
+
+export const suspendCaptainSchema = Joi.object({
+    reason: Joi.string().max(500).allow("").optional(),
+});
+
+export const deactivateCaptainSchema = Joi.object({
+    removedReason: Joi.string().max(500).allow("").optional(),
+    hardDelete: Joi.boolean().optional(),
 });

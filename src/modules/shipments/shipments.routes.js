@@ -6,13 +6,21 @@ import {
   updateShipmentStatusSchema,
 } from "./shipments.validation.js";
 import { authenticate } from "../../shared/middleware/authenticate.js";
-import { authorize } from "../../shared/middleware/authorize.js";
+import { authorize, checkIndependentMode } from "../../shared/middleware/authorize.js";
 import { validate } from "../../shared/middleware/validate.js";
 import { ROLES } from "../../shared/constants/roles.js";
+import { checkVerified } from "../../shared/middleware/checkVerified.js";
 
 const router = Router();
 
+// Non-admin routes require verification
 router.use(authenticate);
+router.use((req, res, next) => {
+  if (req.user.role === "admin") {
+    return next();
+  }
+  checkVerified(req, res, next);
+});
 
 router.get("/admin/all", authorize(ROLES.ADMIN), Y.getAllShipments);
 router.patch(
@@ -24,6 +32,7 @@ router.patch(
 router.get(
   "/available",
   authorize(ROLES.DRIVER, ROLES.OFFICE),
+  checkIndependentMode,
   Y.getAvailableShipments,
 );
 router.get(

@@ -130,11 +130,26 @@ export const changePassword = asyncHandler(async (req, res) => {
 });
 
 export const getMe = asyncHandler(async (req, res) => {
-  const userJson = req.user.toSafeJSON();
+  let userJson;
+  if (req.user && typeof req.user.toSafeJSON === "function") {
+    userJson = req.user.toSafeJSON();
+  } else {
+    userJson = { ...req.user };
+    delete userJson.password;
+    delete userJson.refreshTokens;
+    delete userJson.otpHash;
+    delete userJson.otpExpires;
+    delete userJson.otpPurpose;
+    delete userJson.passwordResetTokenHash;
+    delete userJson.passwordResetExpires;
+  }
+
   if (req.user.role === "driver") {
     const driver = await Driver.findOne({ user: req.user._id });
     if (driver) {
       userJson.driverStatus = driver.status;
+      userJson.workingMode = driver.workingMode || "independent";
+      userJson.activeOfficeId = driver.activeOfficeId || null;
     }
   } else if (req.user.role === "office") {
     const office = await Office.findOne({ user: req.user._id });
@@ -145,4 +160,29 @@ export const getMe = asyncHandler(async (req, res) => {
   return ApiResponse.send(res, 200, "Current user", {
     user: userJson,
   });
+});
+
+// ─── Captain Onboarding Controllers ───────────────────────────────────────────
+
+export const verifyCaptainOtp = asyncHandler(async (req, res) => {
+  const result = await authService.verifyCaptainOtp(req.body);
+  return ApiResponse.send(res, 200, result.message, result);
+});
+
+export const setCaptainPassword = asyncHandler(async (req, res) => {
+  const result = await authService.setCaptainPassword(req.body);
+  if (result.tokens?.refreshToken) {
+    res.cookie("refreshToken", result.tokens.refreshToken, getCookieOptions(req));
+  }
+  return ApiResponse.send(res, 200, result.message, result);
+});
+
+export const resendCaptainOtp = asyncHandler(async (req, res) => {
+  const result = await authService.resendCaptainOtp(req.body);
+  return ApiResponse.send(res, 200, result.message, result);
+});
+
+export const getCaptainOnboardingStatus = asyncHandler(async (req, res) => {
+  const result = await authService.getCaptainOnboardingStatus(req.body);
+  return ApiResponse.send(res, 200, "Onboarding status retrieved", result);
 });

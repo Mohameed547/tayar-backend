@@ -9,7 +9,7 @@ export function hashOtp(otp) {
 }
 
 export function getOtpExpiry() {
-    return new Date(Date.now() + 10 * 60 * 1000);
+    return new Date(Date.now() + 1 * 60 * 1000);
 }
 
 export function verifyOtp(otp, hashedOtp, expiryDate) {

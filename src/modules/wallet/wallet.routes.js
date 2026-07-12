@@ -17,13 +17,15 @@ import {
     transactionHistoryQuerySchema,
 } from "./wallet.validation.js";
 
+import { checkVerified } from "../../shared/middleware/checkVerified.js";
+
 const router = Router();
 
 // ⚠️ مسار الـ Webhook عام ولا يحتاج لتوكن العميل لأن سيرفر الدفع الخارجي هو من يستدعيه
 router.post("/webhook/paymob", handlePaymobWebhook);
 
 // بقية المسارات تتطلب الحماية والتوكن الخاص بالعميل
-router.use(authenticate);
+router.use(authenticate, checkVerified);
 
 router.get("/", getWalletBalance);
 router.get("/transactions", validate(transactionHistoryQuerySchema, "query"), getTransactionHistory);

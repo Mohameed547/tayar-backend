@@ -14,6 +14,10 @@ export const NOTIFICATION_TYPE = {
     CANCELLED: "cancelled",
     DISPUTE_OPENED: "dispute_opened",
     WALLET_CREDITED: "wallet_credited",
+    OFFICE_INVITE: "office_invite",
+    OFFICE_INVITE_ACCEPTED: "office_invite_accepted",
+    OFFICE_INVITE_REJECTED: "office_invite_rejected",
+    OFFICE_RELATION_UPDATE: "office_relation_update",
 };
 
 const notificationSchema = new Schema(

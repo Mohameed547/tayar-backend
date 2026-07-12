@@ -5,5 +5,5 @@ export const updateDriverStatusSchema = Joi.object({
 });
 
 export const updateDriverAvailabilitySchema = Joi.object({
-  status: Joi.string().valid("available", "busy", "offline").required(),
+  status: Joi.string().valid("available", "busy", "offline", "delivering", "on_break", "suspended").required(),
 });

@@ -7,6 +7,7 @@ import { getPagination } from "../../shared/utils/pagination.js";
 import { SHIPMENT_STATUS } from "../../shared/constants/shipmentStatus.js";
 import User from "../../database/models/User.model.js";
 import walletService from "../wallet/wallet.service.js";
+import { getRoadDistanceKm } from "../../shared/utils/routing.js";
 
 const geocodeAddress = async (address) => {
     try {
@@ -80,7 +81,7 @@ const createShipment = async (customerId, body) => {
         geocodeAddress(deliveryAddress),
     ]);
 
-    const distanceKm = calcDistanceKm(pickupCoords, deliveryCoords);
+    const distanceKm = await getRoadDistanceKm(pickupCoords, deliveryCoords);
     const { estimatedPriceMin, estimatedPriceMax } = calcEstimatedPrice(
         distanceKm,
         weight,
@@ -325,7 +326,13 @@ const getMyAssignedShipments = async (
         const office = await Office.findOne({ user: userId });
         query = office ? { assignedOffice: office._id } : { _id: null };
     } else {
-        query = { captain: userId };
+        const DriverModel = (await import("../../database/models/Driver.js")).default;
+        const driver = await DriverModel.findOne({ user: userId });
+        if (driver && driver.workingMode === "office") {
+            query = { captain: userId, assignedOffice: driver.activeOfficeId };
+        } else {
+            query = { captain: userId, assignedOffice: null };
+        }
     }
 
     if (status) query.status = { $in: status.split(",") };
@@ -354,6 +361,26 @@ const acceptAssignment = async (shipmentId, captainUserId) => {
         throw ApiError.forbidden("This shipment is not assigned to you");
     }
 
+    const driver = await Driver.findOne({ user: captainUserId });
+    if (!driver) throw ApiError.notFound("Driver profile not found");
+
+    if (shipment.assignedOffice) {
+        if (driver.workingMode !== "office") {
+            const err = new ApiError(403, "You are currently working in Independent mode. Switch to Office mode to accept office assignments.");
+            err.errorCode = "OFFICE_MODE_ACTIVE";
+            throw err;
+        }
+        if (!driver.activeOfficeId || driver.activeOfficeId.toString() !== shipment.assignedOffice.toString()) {
+            throw ApiError.forbidden("This shipment is assigned by another office. Please switch your active office to accept it.");
+        }
+    } else {
+        if (driver.workingMode !== "independent") {
+            const err = new ApiError(403, "You are currently working with an Office. Switch to Independent mode to accept marketplace jobs.");
+            err.errorCode = "OFFICE_MODE_ACTIVE";
+            throw err;
+        }
+    }
+
     if (shipment.captainStatus !== "pending") {
         throw ApiError.badRequest(
             `Shipment assignment is already ${shipment.captainStatus}`,
@@ -364,7 +391,6 @@ const acceptAssignment = async (shipmentId, captainUserId) => {
     shipment.status = SHIPMENT_STATUS.CAPTAIN_ASSIGNMENT;
     await shipment.save();
 
-    const driver = await Driver.findOne({ user: captainUserId });
     if (driver) {
         driver.status = "busy";
         driver.lastActiveAt = new Date();
@@ -404,6 +430,10 @@ const acceptAssignment = async (shipmentId, captainUserId) => {
                     message: `Captain accepted the assignment for shipment #${shipment.trackingNumber}.`,
                     relatedShipmentId: shipment._id,
                 });
+
+                const { getIO } = await import("../../config/socket.js");
+                const io = getIO();
+                io.to(`office:${office._id}`).emit("shipment_accepted", { shipmentId: shipment._id, trackingNumber: shipment.trackingNumber, captainUserId });
             }
         }
     } catch (err) {
@@ -424,6 +454,26 @@ const rejectAssignment = async (shipmentId, captainUserId) => {
         throw ApiError.forbidden("This shipment is not assigned to you");
     }
 
+    const driver = await Driver.findOne({ user: captainUserId });
+    if (!driver) throw ApiError.notFound("Driver profile not found");
+
+    if (shipment.assignedOffice) {
+        if (driver.workingMode !== "office") {
+            const err = new ApiError(403, "You are currently working in Independent mode. Switch to Office mode to reject office assignments.");
+            err.errorCode = "OFFICE_MODE_ACTIVE";
+            throw err;
+        }
+        if (!driver.activeOfficeId || driver.activeOfficeId.toString() !== shipment.assignedOffice.toString()) {
+            throw ApiError.forbidden("This shipment is assigned by another office. Please switch your active office to reject it.");
+        }
+    } else {
+        if (driver.workingMode !== "independent") {
+            const err = new ApiError(403, "You are currently working with an Office. Switch to Independent mode to reject marketplace jobs.");
+            err.errorCode = "OFFICE_MODE_ACTIVE";
+            throw err;
+        }
+    }
+
     if (shipment.captainStatus !== "pending") {
         throw ApiError.badRequest(
             `Shipment assignment is already ${shipment.captainStatus}`,
@@ -436,7 +486,6 @@ const rejectAssignment = async (shipmentId, captainUserId) => {
     shipment.captainPrice = null;
     await shipment.save();
 
-    const driver = await Driver.findOne({ user: captainUserId });
     if (driver) {
         driver.status = "available";
         await driver.save();
@@ -459,6 +508,10 @@ const rejectAssignment = async (shipmentId, captainUserId) => {
                     message: `Captain rejected the assignment for shipment #${shipment.trackingNumber}.`,
                     relatedShipmentId: shipment._id,
                 });
+
+                const { getIO } = await import("../../config/socket.js");
+                const io = getIO();
+                io.to(`office:${office._id}`).emit("shipment_rejected", { shipmentId: shipment._id, trackingNumber: shipment.trackingNumber, captainUserId });
             }
         }
     } catch (err) {

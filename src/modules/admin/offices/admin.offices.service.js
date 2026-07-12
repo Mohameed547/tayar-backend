@@ -42,9 +42,15 @@ const formatOffice = (office, user, ordersCount = 0, rating = 0) => ({
  * can be enriched with a constant number of queries instead of N+1.
  */
 const buildOfficeMetricsMap = async (officeIds, officeUserIds) => {
-    const [drivers, officeReviews] = await Promise.all([
+    const OfficeCaptain = (await import("../../../database/models/OfficeCaptain.js")).default;
+    const { OFFICE_CAPTAIN_STATUS } = await import("../../../shared/constants/officeCaptainStatus.js");
+
+    const [legacyDrivers, relations, officeReviews] = await Promise.all([
         Driver.find({ officeId: { $in: officeIds } })
             .select("officeId user")
+            .lean(),
+        OfficeCaptain.find({ officeId: { $in: officeIds }, status: OFFICE_CAPTAIN_STATUS.ACTIVE })
+            .populate({ path: "captainId", select: "user" })
             .lean(),
         Review.find({
             reviewee: { $in: officeUserIds },
@@ -53,6 +59,36 @@ const buildOfficeMetricsMap = async (officeIds, officeUserIds) => {
             .select("reviewee rating")
             .lean(),
     ]);
+
+    // Merge drivers from both new relation model and legacy officeId field
+    const drivers = [];
+    const seen = new Set();
+
+    legacyDrivers.forEach((d) => {
+        const key = `${d.officeId.toString()}-${d._id.toString()}`;
+        if (!seen.has(key)) {
+            seen.add(key);
+            drivers.push({
+                _id: d._id,
+                officeId: d.officeId,
+                user: d.user,
+            });
+        }
+    });
+
+    relations.forEach((r) => {
+        if (r.captainId) {
+            const key = `${r.officeId.toString()}-${r.captainId._id.toString()}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                drivers.push({
+                    _id: r.captainId._id,
+                    officeId: r.officeId,
+                    user: r.captainId.user,
+                });
+            }
+        }
+    });
 
     const driverUserIds = drivers.map((d) => d.user);
 

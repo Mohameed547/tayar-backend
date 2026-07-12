@@ -5,12 +5,17 @@ import { connectDB } from "./config/database.js";
 import { initSocket } from "./config/socket.js";
 import { ENV } from "./config/env.js";
 import logger from "./shared/middleware/logger.js";
+import { startLifecycleCrons } from "./jobs/lifecycle.cron.js";
+import { migrateLegacyOfficeCaptains } from "./database/migrations/officeCaptainMigration.js";
 
 const start = async () => {
     try {
-        
         await connectDB();
         logger.info("Connected to MongoDB successfully.");
+
+        // Start background jobs and run database migrations that depend on DB connection
+        startLifecycleCrons();
+        await migrateLegacyOfficeCaptains();
 
         const httpServer = http.createServer(app);
         initSocket(httpServer);

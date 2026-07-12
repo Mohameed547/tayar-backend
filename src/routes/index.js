@@ -22,6 +22,7 @@ import settingsRoutes from "../modules/admin/setting/settings.routes.js";
 import adminOfficesRoutes from "../modules/admin/offices/admin.offices.routes.js";
 import adminDashboardRoutes from "../modules/admin/dashboard/admin.dashboard.routes.js";
 import adminDisputesRoutes from "../modules/admin/disputes/disputes.routes.js";
+import adminRelationshipsRoutes from "../modules/admin/relationships/admin.relationships.routes.js";
 
 const router = Router();
 
@@ -48,5 +49,6 @@ router.use("/admin/settings", settingsRoutes);
 router.use("/admin/offices", adminOfficesRoutes);
 router.use("/admin/dashboard", adminDashboardRoutes);
 router.use("/admin/disputes", adminDisputesRoutes);
+router.use("/admin/relationships", adminRelationshipsRoutes);
 
 export default router;

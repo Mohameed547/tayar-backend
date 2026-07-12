@@ -29,7 +29,7 @@ export const initSocket = (httpServer) => {
       }
 
       const decoded = jwt.verify(token, ENV.JWT_SECRET);
-      const user = await User.findById(decoded.id).select("-password");
+      const user = await User.findOne({ _id: decoded.id, isDeleted: { $ne: true } }).select("-password -refreshTokens -otpHash -otpExpires -passwordResetTokenHash");
       if (!user) {
         return next(new Error("User no longer exists"));
       }
@@ -89,9 +89,33 @@ export const initSocket = (httpServer) => {
       } else if (socket.user.role === "driver") {
         const DriverModel = (await import("../database/models/Driver.js")).default;
         const driver = await DriverModel.findOne({ user: socket.user._id });
-        if (driver && driver.officeId) {
-          socket.join(`office:${driver.officeId}`);
-          console.log(`Socket ${socket.id} (Driver) joined office room office:${driver.officeId}`);
+        if (driver) {
+          const officeIds = [];
+          if (driver.officeId) {
+            officeIds.push(driver.officeId.toString());
+          }
+
+          // Fetch all active relations from OfficeCaptain model
+          const OfficeCaptain = (await import("../database/models/OfficeCaptain.js")).default;
+          const { OFFICE_CAPTAIN_STATUS } = await import("../shared/constants/officeCaptainStatus.js");
+          const relations = await OfficeCaptain.find({
+            captainId: driver._id,
+            status: OFFICE_CAPTAIN_STATUS.ACTIVE,
+          })
+            .select("officeId")
+            .lean();
+
+          relations.forEach((r) => {
+            const idStr = r.officeId.toString();
+            if (!officeIds.includes(idStr)) {
+              officeIds.push(idStr);
+            }
+          });
+
+          officeIds.forEach((oId) => {
+            socket.join(`office:${oId}`);
+            console.log(`Socket ${socket.id} (Driver) joined office room office:${oId}`);
+          });
         }
       }
     } catch (err) {
@@ -162,4 +186,18 @@ export const getIO = () => {
     );
   }
   return io;
+};
+
+export const disconnectUser = (userId) => {
+  if (io && onlineUsers.has(userId)) {
+    const socketIds = onlineUsers.get(userId);
+    for (const socketId of socketIds) {
+      const socket = io.sockets.sockets.get(socketId);
+      if (socket) {
+        socket.disconnect(true);
+      }
+    }
+    onlineUsers.delete(userId);
+    io.emit("user:statusChanged", { userId, status: "offline" });
+  }
 };
