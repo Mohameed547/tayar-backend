@@ -16,6 +16,22 @@ import {
 import logger from "../../shared/middleware/logger.js";
 import { ENV } from "../../config/env.js";
 import { ROLES } from "../../shared/constants/roles.js";
+import { ACCOUNT_STATUS } from "../../shared/constants/accountStatus.js";
+
+// ─── Shared lifecycle guard ────────────────────────────────────────────────────
+// Centralised: previously duplicated in login, adminLogin, refresh, authenticate
+function assertLifecycleAllowed(user) {
+  if (user.isDeleted || user.accountStatus === ACCOUNT_STATUS.DELETED) {
+    throw ApiError.forbidden("Your account has been permanently deleted.");
+  }
+  if (
+    user.accountStatus === ACCOUNT_STATUS.SUSPENDED ||
+    user.status === "suspended" ||
+    user.status === "banned"
+  ) {
+    throw ApiError.forbidden("Your account is suspended. Contact support.");
+  }
+}
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -74,6 +90,7 @@ export async function register(payload) {
         });
         await driver.save({ session });
         logger.info(`Saved Driver in transaction: ${driver._id}`);
+        await linkPendingInvitations(driver._id, email, phone);
       } else if (role === "office") {
         logger.info(`Saving Office in transaction for user: ${user._id}`);
         const office = new Office({
@@ -116,6 +133,7 @@ export async function register(payload) {
         });
         await driver.save();
         logger.info(`Saved Driver in standalone: ${driver._id}`);
+        await linkPendingInvitations(driver._id, email, phone);
       } else if (role === "office") {
         logger.info(`Saving Office in standalone for user: ${user._id}`);
         const office = new Office({
@@ -150,6 +168,8 @@ export async function register(payload) {
     const driver = await Driver.findOne({ user: user._id });
     if (driver) {
       userJson.driverStatus = driver.status;
+      userJson.workingMode = driver.workingMode || "independent";
+      userJson.activeOfficeId = driver.activeOfficeId || null;
     }
   } else if (user.role === "office") {
     const office = await Office.findOne({ user: user._id });
@@ -163,36 +183,69 @@ export async function register(payload) {
 export async function login({ emailOrPhone, password }) {
   const user = await User.findOne({
     $or: [{ email: emailOrPhone?.toLowerCase() }, { phone: emailOrPhone }],
+    isDeleted: { $in: [true, false] },
   }).select("+password +refreshTokens");
 
-  if (!user || !(await user.comparePassword(password))) {
-    throw ApiError.unauthorized("Invalid credentials");
+  // NOTE: We intentionally check password BEFORE lifecycle status to prevent
+  // user enumeration via timing — invalid credentials always reject first.
+  // Exception: if no password has been set yet (new captain), we check lifecycle first.
+  if (!user) {
+    throw ApiError.unauthorized("Invalid credentials.");
   }
-  if (user.status === "suspended" || user.status === "banned") {
-    throw ApiError.forbidden(
-      `Your account is ${user.status}. Contact support.`,
+
+  // Handle accounts with no password yet (new captains awaiting onboarding)
+  if (!user.password) {
+    const lifecycleReason = user.accountStatus || "PENDING_OTP";
+    throw Object.assign(
+      new ApiError(403, `Account not fully set up. Reason: ${lifecycleReason}`, lifecycleReason),
+      { code: lifecycleReason, phone: user.phone, email: user.email }
+    );
+  }
+
+  if (!(await user.comparePassword(password))) {
+    throw ApiError.unauthorized("Invalid credentials.");
+  }
+
+  // Now safe to reveal the lifecycle reason
+  assertLifecycleAllowed(user);
+
+  // Block login for captains in onboarding pipeline
+  const BLOCKED_STATUSES = ["PENDING_OTP", "PENDING_PASSWORD", "PENDING_DOCUMENTS", "PENDING_ADMIN_REVIEW", "REJECTED"];
+  if (BLOCKED_STATUSES.includes(user.accountStatus)) {
+    throw Object.assign(
+      new ApiError(403, `Account access restricted. Status: ${user.accountStatus}`, user.accountStatus),
+      { code: user.accountStatus, phone: user.phone, email: user.email }
     );
   }
 
   const tokens = issueTokenPair({ id: user._id, role: user.role });
-  user.refreshTokens = [
-    ...(user.refreshTokens || []).slice(-4),
-    tokens.refreshToken,
-  ];
-  user.lastLoginAt = new Date();
+  // Cap at 5 concurrent sessions — prevents unbounded array growth
+  user.refreshTokens = [...(user.refreshTokens || []).slice(-4), tokens.refreshToken];
+  user.lastLoginAt   = new Date();
   await user.save();
 
   const userJsonLogin = user.toSafeJSON();
+
+  // Load role-specific status fields in parallel
   if (user.role === "driver") {
-    const driver = await Driver.findOne({ user: user._id });
+    const driver = await Driver.findOne({ user: user._id }).select("status workingMode activeOfficeId").lean();
     if (driver) {
       userJsonLogin.driverStatus = driver.status;
+      userJsonLogin.workingMode = driver.workingMode || "independent";
+      userJsonLogin.activeOfficeId = driver.activeOfficeId || null;
     }
   } else if (user.role === "office") {
-    const office = await Office.findOne({ user: user._id });
-    if (office) {
-      userJsonLogin.officeStatus = office.status || "available";
-    }
+    const office = await Office.findOne({ user: user._id }).select("status").lean();
+    if (office) userJsonLogin.officeStatus = office.status || "available";
+  }
+
+  if (user.accountStatus === ACCOUNT_STATUS.PENDING_DELETION) {
+    return {
+      user: userJsonLogin,
+      tokens,
+      isPendingDeletion: true,
+      message: "Account is pending deletion. You can restore it within 30 days.",
+    };
   }
 
   return { user: userJsonLogin, tokens };
@@ -201,26 +254,21 @@ export async function login({ emailOrPhone, password }) {
 export async function adminLogin({ emailOrPhone, password }) {
   const user = await User.findOne({
     $or: [{ email: emailOrPhone?.toLowerCase() }, { phone: emailOrPhone }],
+    isDeleted: { $in: [true, false] },
   }).select("+password +refreshTokens");
 
   if (!user || !(await user.comparePassword(password))) {
-    throw ApiError.unauthorized("Invalid credentials");
+    throw ApiError.unauthorized("Invalid credentials.");
   }
   if (user.role !== ROLES.ADMIN) {
-    throw ApiError.forbidden("This account does not have admin access");
-  }
-  if (user.status === "suspended" || user.status === "banned") {
-    throw ApiError.forbidden(
-      `Your account is ${user.status}. Contact support.`,
-    );
+    throw ApiError.forbidden("This account does not have admin access.");
   }
 
+  assertLifecycleAllowed(user);
+
   const tokens = issueTokenPair({ id: user._id, role: user.role });
-  user.refreshTokens = [
-    ...(user.refreshTokens || []).slice(-4),
-    tokens.refreshToken,
-  ];
-  user.lastLoginAt = new Date();
+  user.refreshTokens = [...(user.refreshTokens || []).slice(-4), tokens.refreshToken];
+  user.lastLoginAt   = new Date();
   await user.save();
 
   return { user: user.toSafeJSON(), tokens };
@@ -230,18 +278,27 @@ export async function refresh(refreshTokenValue) {
   try {
     decoded = verifyRefreshToken(refreshTokenValue);
   } catch (_err) {
-    throw ApiError.unauthorized("Invalid or expired refresh token");
+    throw ApiError.unauthorized("Invalid or expired refresh token.");
   }
 
-  const user = await User.findById(decoded.id).select("+refreshTokens");
+  const user = await User.findOne({
+    _id: decoded.id,
+    isDeleted: { $in: [true, false] },
+  }).select("+refreshTokens");
+
   if (!user || !(user.refreshTokens || []).includes(refreshTokenValue)) {
-    throw ApiError.unauthorized("Refresh token has been revoked");
+    // Token rotation: if token not found, it may have been replayed — reject
+    throw ApiError.unauthorized("Refresh token has been revoked or already used.");
   }
 
+  assertLifecycleAllowed(user);
+
+  // Rotate: remove old token, issue new pair (prevents refresh token reuse)
   const tokens = issueTokenPair({ id: user._id, role: user.role });
   user.refreshTokens = user.refreshTokens
     .filter((t) => t !== refreshTokenValue)
-    .concat(tokens.refreshToken);
+    .concat(tokens.refreshToken)
+    .slice(-5); // Safety cap
   await user.save();
 
   return { tokens };
@@ -310,6 +367,7 @@ export async function verifyPhoneOtp({ phone, otp }) {
   }
 
   user.isPhoneVerified = true;
+  user.phoneVerifiedAt = new Date();
   if (user.status === "pending" && user.role === "customer")
     user.status = "active";
   user.otpHash = undefined;
@@ -390,4 +448,157 @@ export async function changePassword(userId, { currentPassword, newPassword }) {
   user.refreshTokens = [];
   await user.save();
   return { message: "Password changed successfully" };
+}
+
+async function linkPendingInvitations(driverId, email, phone) {
+  try {
+    const OfficeCaptain = (await import("../../database/models/OfficeCaptain.js")).default;
+    const { OFFICE_CAPTAIN_STATUS } = await import("../../shared/constants/officeCaptainStatus.js");
+    
+    const conditions = [];
+    if (email) conditions.push({ inviteeEmail: email.toLowerCase() });
+    if (phone) conditions.push({ inviteePhone: phone });
+    
+    if (conditions.length > 0) {
+      await OfficeCaptain.updateMany(
+        {
+          captainId: null,
+          status: OFFICE_CAPTAIN_STATUS.INVITED,
+          $or: conditions
+        },
+        {
+          captainId: driverId
+        }
+      );
+      logger.info(`[Invitation Linker] Linked driver ${driverId} to matching pending invitations.`);
+    }
+  } catch (err) {
+    logger.error(`[Invitation Linker ERROR] Failed to link pending invitations: ${err.message}`);
+  }
+}
+
+// ─── Captain Onboarding Functions ─────────────────────────────────────────────
+
+const MAX_OTP_ATTEMPTS = 5;
+const MAX_OTP_RESENDS  = 5;
+const OTP_EXPIRY_MS    = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Verify OTP for captain activation.
+ * On success: accountStatus → PENDING_PASSWORD, isPhoneVerified = true.
+ */
+export async function verifyCaptainOtp({ phone, otp }) {
+  const user = await User.findOne({ phone }).select("+otpHash +otpExpires +otpAttempts +otpPurpose");
+  if (!user) throw ApiError.notFound("No account found with this phone number.");
+
+  if (user.accountStatus !== "PENDING_OTP") {
+    throw ApiError.badRequest("This account is not awaiting OTP verification.");
+  }
+
+  // Enforce attempt limit
+  if ((user.otpAttempts || 0) >= MAX_OTP_ATTEMPTS) {
+    throw ApiError.badRequest("Too many failed attempts. Please request a new OTP.");
+  }
+
+  const result = checkOtp(otp, user.otpHash, user.otpExpires);
+  if (!result.valid) {
+    user.otpAttempts = (user.otpAttempts || 0) + 1;
+    await user.save();
+    const attemptsLeft = MAX_OTP_ATTEMPTS - user.otpAttempts;
+    throw ApiError.badRequest(
+      result.reason === "expired"
+        ? "OTP has expired. Please request a new one."
+        : `Invalid OTP. ${attemptsLeft} attempt(s) remaining.`
+    );
+  }
+
+  // OTP valid — advance to password setup stage
+  user.isPhoneVerified = true;
+  user.phoneVerifiedAt = new Date();
+  user.accountStatus   = "PENDING_PASSWORD";
+  user.otpHash         = undefined;
+  user.otpExpires      = undefined;
+  user.otpPurpose      = undefined;
+  user.otpAttempts     = 0;
+  await user.save();
+
+  logger.info(`[CaptainOTP] Phone ${phone} verified successfully. Advancing to PENDING_PASSWORD.`);
+  return { message: "OTP verified. Please set your password.", accountStatus: "PENDING_PASSWORD" };
+}
+
+/**
+ * Set password for a captain in PENDING_PASSWORD state.
+ * On success: accountStatus → PENDING_DOCUMENTS, isActive = true.
+ */
+export async function setCaptainPassword({ phone, password }) {
+  const user = await User.findOne({ phone }).select("+password +refreshTokens");
+  if (!user) throw ApiError.notFound("No account found with this phone number.");
+
+  if (user.accountStatus !== "PENDING_PASSWORD") {
+    throw ApiError.badRequest("Password setup is not available for this account at this stage.");
+  }
+
+  user.password          = password; // pre-save hook will hash it
+  user.passwordCreatedAt = new Date();
+  user.accountStatus     = "PENDING_DOCUMENTS";
+  user.status            = "pending";
+  await user.save();
+
+  // Activate driver record
+  const Driver = (await import("../../database/models/Driver.js")).default;
+  await Driver.findOneAndUpdate({ user: user._id }, { isActive: true });
+
+  // Issue tokens so captain can access the documents upload screen
+  const tokens = issueTokenPair({ id: user._id, role: user.role });
+  user.refreshTokens = [tokens.refreshToken];
+  user.lastLoginAt   = new Date();
+  await user.save();
+
+  logger.info(`[CaptainPassword] Password set for ${phone}. Advancing to PENDING_DOCUMENTS.`);
+  return {
+    user: user.toSafeJSON(),
+    tokens,
+    accountStatus: "PENDING_DOCUMENTS",
+    message: "Password set. Please upload your documents.",
+  };
+}
+
+/**
+ * Resend OTP for captain activation (rate-limited to MAX_OTP_RESENDS).
+ */
+export async function resendCaptainOtp({ phone }) {
+  const user = await User.findOne({ phone }).select("+otpResendCount +otpHash +otpExpires");
+  if (!user) throw ApiError.notFound("No account found with this phone number.");
+
+  if (user.accountStatus !== "PENDING_OTP") {
+    throw ApiError.badRequest("OTP resend is not applicable for this account.");
+  }
+
+  if ((user.otpResendCount || 0) >= MAX_OTP_RESENDS) {
+    throw ApiError.badRequest("Maximum OTP resend limit reached. Contact support.");
+  }
+
+  user.otpResendCount = (user.otpResendCount || 0) + 1;
+  user.otpAttempts    = 0; // reset attempt counter on resend
+  await sendEmailOtp(user, "captain_activation");
+
+  logger.info(`[CaptainOTP Resend] OTP resent to ${user.email} (resend #${user.otpResendCount})`);
+  return {
+    message: "OTP resent to your email.",
+    resendsLeft: MAX_OTP_RESENDS - user.otpResendCount,
+  };
+}
+
+/**
+ * Get current onboarding status for a captain (by phone).
+ * Used by the frontend to determine which screen to show.
+ */
+export async function getCaptainOnboardingStatus({ phone }) {
+  const user = await User.findOne({ phone }).select("accountStatus isPhoneVerified email role");
+  if (!user || user.role !== "driver") throw ApiError.notFound("No captain found with this phone number.");
+  return {
+    accountStatus: user.accountStatus,
+    isPhoneVerified: user.isPhoneVerified,
+    email: user.email,
+  };
 }

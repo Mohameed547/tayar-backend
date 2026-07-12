@@ -14,7 +14,48 @@ const createNotification = async ({ userId, type, title, message, relatedShipmen
     });
 
     try {
-        getIO().to(`user:${userId}`).emit("newNotification", notification);
+        const DriverModel = (await import("../../database/models/Driver.js")).default;
+        const driver = await DriverModel.findOne({ user: userId });
+        
+        let shouldEmit = true;
+        if (driver) {
+            const workingMode = driver.workingMode || "independent";
+            const activeOfficeId = driver.activeOfficeId ? driver.activeOfficeId.toString() : null;
+            
+            let shipmentAssignedOffice = null;
+            if (relatedShipmentId) {
+                const ShipmentModel = (await import("../../database/models/Shipment.model.js")).default;
+                const shipment = await ShipmentModel.findById(relatedShipmentId);
+                if (shipment && shipment.assignedOffice) {
+                    shipmentAssignedOffice = shipment.assignedOffice.toString();
+                }
+            }
+
+            const isOfficeInviteOrRelation = [
+                "office_invite",
+                "office_invite_accepted",
+                "office_invite_rejected",
+                "office_relation_update"
+            ].includes(type);
+
+            if (workingMode === "office") {
+                if (shipmentAssignedOffice) {
+                    shouldEmit = (shipmentAssignedOffice === activeOfficeId);
+                } else {
+                    shouldEmit = isOfficeInviteOrRelation;
+                }
+            } else {
+                if (shipmentAssignedOffice) {
+                    shouldEmit = false;
+                } else {
+                    shouldEmit = !isOfficeInviteOrRelation || type === "office_invite";
+                }
+            }
+        }
+
+        if (shouldEmit) {
+            getIO().to(`user:${userId}`).emit("newNotification", notification);
+        }
     } catch {
         return notification;
     }
@@ -28,23 +69,93 @@ const getNotificationsForUser = async (userId, { status, page, limit }) => {
     const query = { user: userId };
     if (status === "unread") query.isRead = false;
 
-    const [notifications, total] = await Promise.all([
-        Notification.find(query)
-            .sort({ createdAt: -1 })
-            .populate({
-                path: "relatedShipment",
-                populate: { path: "captain", select: "fullName" }
-            })
-            .skip(skip)
-            .limit(take),
-        Notification.countDocuments(query),
-    ]);
+    const rawNotifications = await Notification.find(query)
+        .sort({ createdAt: -1 })
+        .populate({
+            path: "relatedShipment",
+            populate: { path: "captain", select: "fullName" }
+        });
 
-    return { notifications, total, page: Number(page) || 1, limit: take };
+    const DriverModel = (await import("../../database/models/Driver.js")).default;
+    const driver = await DriverModel.findOne({ user: userId });
+
+    let filtered = rawNotifications;
+    if (driver) {
+        const workingMode = driver.workingMode || "independent";
+        const activeOfficeId = driver.activeOfficeId ? driver.activeOfficeId.toString() : null;
+
+        filtered = rawNotifications.filter(n => {
+            const isOfficeInviteOrRelation = [
+                "office_invite",
+                "office_invite_accepted",
+                "office_invite_rejected",
+                "office_relation_update"
+            ].includes(n.type);
+
+            const shipmentAssignedOffice = n.relatedShipment && n.relatedShipment.assignedOffice
+                ? n.relatedShipment.assignedOffice.toString()
+                : null;
+
+            if (workingMode === "office") {
+                if (shipmentAssignedOffice) {
+                    return shipmentAssignedOffice === activeOfficeId;
+                }
+                return isOfficeInviteOrRelation;
+            } else {
+                if (shipmentAssignedOffice) {
+                    return false;
+                }
+                return !isOfficeInviteOrRelation || n.type === "office_invite";
+            }
+        });
+    }
+
+    const total = filtered.length;
+    const paginatedNotifications = filtered.slice(skip, skip + take);
+
+    return { notifications: paginatedNotifications, total, page: Number(page) || 1, limit: take };
 };
 
 const getUnreadCount = async (userId) => {
-    return Notification.countDocuments({ user: userId, isRead: false });
+    const rawUnread = await Notification.find({ user: userId, isRead: false })
+        .populate("relatedShipment");
+
+    const DriverModel = (await import("../../database/models/Driver.js")).default;
+    const driver = await DriverModel.findOne({ user: userId });
+
+    if (!driver) {
+        return rawUnread.length;
+    }
+
+    const workingMode = driver.workingMode || "independent";
+    const activeOfficeId = driver.activeOfficeId ? driver.activeOfficeId.toString() : null;
+
+    const filtered = rawUnread.filter(n => {
+        const isOfficeInviteOrRelation = [
+            "office_invite",
+            "office_invite_accepted",
+            "office_invite_rejected",
+            "office_relation_update"
+        ].includes(n.type);
+
+        const shipmentAssignedOffice = n.relatedShipment && n.relatedShipment.assignedOffice
+            ? n.relatedShipment.assignedOffice.toString()
+            : null;
+
+        if (workingMode === "office") {
+            if (shipmentAssignedOffice) {
+                return shipmentAssignedOffice === activeOfficeId;
+            }
+            return isOfficeInviteOrRelation;
+        } else {
+            if (shipmentAssignedOffice) {
+                return false;
+            }
+            return !isOfficeInviteOrRelation || n.type === "office_invite";
+        }
+    });
+
+    return filtered.length;
 };
 
 const markAsRead = async (userId, notificationId) => {

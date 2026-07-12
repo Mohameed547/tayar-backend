@@ -69,4 +69,10 @@ router.post(
   controller.adminLogin,
 );
 
+// ─── Captain Onboarding Routes ─────────────────────────────────────────────────
+router.post("/captain/verify-otp",   authLimiter, controller.verifyCaptainOtp);
+router.post("/captain/set-password", authLimiter, controller.setCaptainPassword);
+router.post("/captain/resend-otp",   authLimiter, controller.resendCaptainOtp);
+router.post("/captain/onboarding-status", controller.getCaptainOnboardingStatus);
+
 export default router;

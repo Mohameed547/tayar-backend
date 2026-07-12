@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { authenticate } from "../../shared/middleware/authenticate.js";
 import { validate } from "../../shared/middleware/validate.js";
+import { checkVerified } from "../../shared/middleware/checkVerified.js";
 import {
     listNotificationsQuerySchema,
     notificationIdParamSchema,
@@ -14,7 +15,7 @@ import {
 
 const router = Router();
 
-router.use(authenticate);
+router.use(authenticate, checkVerified);
 
 router.get("/", validate(listNotificationsQuerySchema, "query"), getMyNotifications);
 router.get("/unread-count", getUnreadCount);

@@ -4,6 +4,40 @@ import Office from "../../database/models/Office.js";
 import ApiError from "../../shared/utils/ApiError.js";
 import { SHIPMENT_STATUS } from "../../shared/constants/shipmentStatus.js";
 import trackingService from "../tracking/tracking.service.js";
+import OfficeCaptain from "../../database/models/OfficeCaptain.js";
+import { OFFICE_CAPTAIN_STATUS } from "../../shared/constants/officeCaptainStatus.js";
+
+// Helper to fetch all active captain IDs for an office (supporting legacy + new relation models)
+const getActiveCaptainIdsForOffice = async (officeId) => {
+    const inactiveRelations = await OfficeCaptain.find({
+        officeId,
+        status: { 
+            $in: [
+                OFFICE_CAPTAIN_STATUS.SUSPENDED,
+                OFFICE_CAPTAIN_STATUS.REMOVED,
+                OFFICE_CAPTAIN_STATUS.LEFT,
+                OFFICE_CAPTAIN_STATUS.REJECTED
+            ] 
+        }
+    }).select("captainId").lean();
+
+    const inactiveIds = new Set(inactiveRelations.filter((r) => r.captainId).map((r) => r.captainId.toString()));
+
+    const [relations, legacyDrivers] = await Promise.all([
+        OfficeCaptain.find({ officeId, status: OFFICE_CAPTAIN_STATUS.ACTIVE }).select("captainId").lean(),
+        Driver.find({ officeId }).select("_id").lean(),
+    ]);
+
+    const activeIds = relations.filter((r) => r.captainId).map((r) => r.captainId.toString());
+    const legacyIds = legacyDrivers.map((d) => d._id.toString()).filter((id) => !inactiveIds.has(id));
+
+    return Array.from(
+        new Set([
+            ...activeIds,
+            ...legacyIds,
+        ])
+    );
+};
 
 const resolveOffice = async (userId) => {
     const office = await Office.findOne({ user: userId });
@@ -39,7 +73,8 @@ const getPendingOffers = async (officeUserId) => {
 // Shipments already handed off to one of the office's captains.
 const getAssignedOffers = async (officeUserId) => {
     const office = await resolveOffice(officeUserId);
-    const captainDrivers = await Driver.find({ officeId: office._id }).select("user");
+    const captainIds = await getActiveCaptainIdsForOffice(office._id);
+    const captainDrivers = await Driver.find({ _id: { $in: captainIds } }).select("user");
     const captainUserIds = captainDrivers.map((d) => d.user);
 
     const shipments = await Shipment.find({
@@ -68,11 +103,18 @@ const ensureOfficeShipment = async (officeUserId, shipmentId) => {
 };
 
 const ensureOfficeCaptain = async (office, captainId) => {
-    const driver = await Driver.findOne({ _id: captainId, officeId: office._id });
-    if (!driver) throw ApiError.notFound("Captain not found for this office");
+    const captainIds = await getActiveCaptainIdsForOffice(office._id);
+    if (!captainIds.includes(captainId.toString())) {
+        throw ApiError.notFound("Captain not found for this office");
+    }
+    const driver = await Driver.findById(captainId);
+    if (!driver) throw ApiError.notFound("Captain not found");
     if (!driver.isActive) throw ApiError.badRequest("Captain is deactivated");
     if (driver.status === CAPTAIN_STATUS.BUSY) {
         throw ApiError.badRequest("Captain is currently busy with another shipment");
+    }
+    if (driver.workingMode !== "office" || !driver.activeOfficeId || driver.activeOfficeId.toString() !== office._id.toString()) {
+        throw ApiError.badRequest("Captain is not currently working in Office mode for this office");
     }
     return driver;
 };
@@ -111,6 +153,11 @@ const assignToCaptain = async (officeUserId, shipmentId, captainId, percentage =
             message: `You have been offered shipment #${shipment.trackingNumber} with a payout of EGP ${captainPrice}. Please accept or reject it.`,
             relatedShipmentId: shipment._id,
         });
+
+        const { getIO } = await import("../../config/socket.js");
+        const io = getIO();
+        io.to(`user:${driver.user}`).emit("shipment_assigned", { shipmentId: shipment._id, trackingNumber: shipment.trackingNumber });
+        io.to(`office:${office._id}`).emit("shipment_assigned", { shipmentId: shipment._id, trackingNumber: shipment.trackingNumber, captainId: driver._id });
     } catch (err) {
         console.error("Failed to emit assignment notifications:", err);
     }
@@ -127,7 +174,8 @@ const reassignToCaptain = async (officeUserId, shipmentId, captainId, percentage
     }
 
     if (shipment.captain) {
-        const previousDriver = await Driver.findOne({ user: shipment.captain, officeId: office._id });
+        const captainIds = await getActiveCaptainIdsForOffice(office._id);
+        const previousDriver = await Driver.findOne({ user: shipment.captain, _id: { $in: captainIds } });
         if (previousDriver) {
             previousDriver.status = CAPTAIN_STATUS.AVAILABLE;
             await previousDriver.save();
@@ -159,6 +207,11 @@ const reassignToCaptain = async (officeUserId, shipmentId, captainId, percentage
             message: `You have been offered shipment #${shipment.trackingNumber} with a payout of EGP ${captainPrice}. Please accept or reject it.`,
             relatedShipmentId: shipment._id,
         });
+
+        const { getIO } = await import("../../config/socket.js");
+        const io = getIO();
+        io.to(`user:${newDriver.user}`).emit("shipment_assigned", { shipmentId: shipment._id, trackingNumber: shipment.trackingNumber });
+        io.to(`office:${office._id}`).emit("shipment_assigned", { shipmentId: shipment._id, trackingNumber: shipment.trackingNumber, captainId: newDriver._id });
     } catch (err) {
         console.error("Failed to emit reassignment notifications:", err);
     }
@@ -191,10 +244,11 @@ const rejectOffer = async (officeUserId, shipmentId) => {
 
 const getDashboard = async (officeUserId) => {
     const office = await resolveOffice(officeUserId);
+    const captainIds = await getActiveCaptainIdsForOffice(office._id);
 
     const [pendingCount, captainDrivers] = await Promise.all([
         Shipment.countDocuments({ assignedOffice: office._id, captain: null }),
-        Driver.find({ officeId: office._id }),
+        Driver.find({ _id: { $in: captainIds } }),
     ]);
 
     const captainUserIds = captainDrivers.map((d) => d.user);

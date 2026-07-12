@@ -234,8 +234,8 @@ const distanceKm = ([lng1, lat1], [lng2, lat2]) => {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
-const computeProgress = (pickupCoords, deliveryCoords, currentCoords) => {
-  const total = distanceKm(pickupCoords, deliveryCoords);
+const computeProgress = (pickupCoords, deliveryCoords, currentCoords, shipmentDistanceKm) => {
+  const total = shipmentDistanceKm || distanceKm(pickupCoords, deliveryCoords);
   if (total === 0) return 100;
 
   const remaining = distanceKm(currentCoords, deliveryCoords);
@@ -413,6 +413,7 @@ const recordLocationPing = async (shipmentId, captainId, { lng, lat }) => {
     tracking.shipment.pickupCoords,
     tracking.shipment.deliveryCoords,
     currentCoords,
+    tracking.shipment.distanceKm,
   );
 
   let justTransitionedToInTransit = false;
@@ -425,6 +426,15 @@ const recordLocationPing = async (shipmentId, captainId, { lng, lat }) => {
     });
     justTransitionedToInTransit = true;
   }
+
+  // Update general driver lastLocation
+  await Driver.findOneAndUpdate(
+    { user: captainId },
+    {
+      lastLocation: { coords: currentCoords, updatedAt: new Date() },
+      lastActiveAt: new Date(),
+    }
+  );
 
   await tracking.save();
 
@@ -587,6 +597,9 @@ const updateStatus = async (shipmentId, captainId, { status, note, otpCode, reci
         if (driver) {
           driver.status = "available";
           driver.totalDeliveries = (driver.totalDeliveries || 0) + 1;
+          if (lat !== undefined && lng !== undefined) {
+            driver.lastLocation = { coords: [lng, lat], updatedAt: new Date() };
+          }
           await driver.save({ session });
         }
 

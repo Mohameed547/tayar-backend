@@ -42,15 +42,33 @@ const uploadDocument = async (userId, { documentType, documentUrl }) => {
 };
 
 const getStatus = async (userId) => {
+    const User = (await import("../../database/models/User.model.js")).default;
+    const { getAccountVerificationStatus } = await import("../../shared/middleware/checkVerified.js");
+    
+    const user = await User.findById(userId);
     const verification = await Verification.findOne({ user: userId });
+
+    const calculatedStatus = getAccountVerificationStatus(user, verification);
+
     if (!verification) {
         return {
-            status: VERIFICATION_STATUS.PENDING,
+            status: calculatedStatus,
             documents: [],
             reviewNote: null,
+            complianceText: "Your verification request has not been submitted.",
+            hasSubmitted: false,
+            isVerified: false,
         };
     }
-    return verification;
+
+    return {
+        status: calculatedStatus,
+        documents: verification.documents,
+        reviewNote: verification.reviewNote,
+        complianceText: verification.reviewNote || (calculatedStatus === "VERIFIED" ? "Your account is fully verified." : "Your verification is under review."),
+        hasSubmitted: verification.documents && verification.documents.length > 0,
+        isVerified: calculatedStatus === "VERIFIED",
+    };
 };
 
 // ✅ بدل getAllPending — بقت getAll وبتقبل status فلتر

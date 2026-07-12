@@ -5,6 +5,9 @@ export const CAPTAIN_STATUS = {
   OFFLINE: "offline",
   BUSY: "busy",
   AVAILABLE: "available",
+  DELIVERING: "delivering",
+  ON_BREAK: "on_break",
+  SUSPENDED: "suspended",
 };
 
 const driverSchema = new mongoose.Schema(
@@ -31,6 +34,24 @@ const driverSchema = new mongoose.Schema(
     },
 
     officeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Office",
+      default: null,
+    },
+
+    defaultOfficeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Office",
+      default: null,
+    },
+
+    workingMode: {
+      type: String,
+      enum: ["independent", "office"],
+      default: "independent",
+    },
+
+    activeOfficeId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Office",
       default: null,

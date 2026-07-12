@@ -41,6 +41,10 @@ const errorHandler = (err, req, res, next) => {
     status,
     success: false,
     message,
+    errorCode: err.errorCode || err.code,
+    code: err.code || err.errorCode,
+    phone: err.phone,
+    email: err.email,
     ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
   });
 };

@@ -10,6 +10,9 @@ import {
     captainListQuerySchema,
     idParamSchema,
     updateOfficeAvailabilitySchema,
+    inviteCaptainSchema,
+    suspendCaptainSchema,
+    deactivateCaptainSchema,
 } from "./office.validation.js";
 import {
     createCaptain,
@@ -24,6 +27,12 @@ import {
     getCaptainOrders,
     getCaptainDeliveries,
     updateOfficeAvailability,
+    searchCaptain,
+    inviteCaptain,
+    suspendCaptain,
+    unsuspendCaptain,
+    cancelInvitation,
+    getOfficeInvitations,
 } from "./office.controller.js";
 import {
     getPendingOffers,
@@ -41,6 +50,10 @@ const router = Router();
 router.use(authenticate, authorize(ROLES.OFFICE), checkVerified);
 
 router.post("/captains", validate(createCaptainSchema), createCaptain);
+router.get("/captains/search", searchCaptain);
+router.post("/captains/invite", validate(inviteCaptainSchema), inviteCaptain);
+router.get("/captains/invitations", getOfficeInvitations);
+router.delete("/captains/invitations/:invitationId", cancelInvitation);
 router.get("/captains", validate(captainListQuerySchema, "query"), getCaptains);
 router.get("/captains/:id", validate(idParamSchema, "params"), getCaptainById);
 router.patch(
@@ -49,7 +62,23 @@ router.patch(
     validate(updateCaptainSchema),
     updateCaptain,
 );
-router.delete("/captains/:id", validate(idParamSchema, "params"), deactivateCaptain);
+router.patch(
+    "/captains/:id/suspend",
+    validate(idParamSchema, "params"),
+    validate(suspendCaptainSchema),
+    suspendCaptain,
+);
+router.patch(
+    "/captains/:id/unsuspend",
+    validate(idParamSchema, "params"),
+    unsuspendCaptain,
+);
+router.delete(
+    "/captains/:id",
+    validate(idParamSchema, "params"),
+    validate(deactivateCaptainSchema),
+    deactivateCaptain
+);
 router.get(
     "/captains/:id/tracking",
     validate(idParamSchema, "params"),

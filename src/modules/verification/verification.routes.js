@@ -19,7 +19,7 @@ const router = Router();
 router.post(
     "/captain/verification/upload",
     authenticate,
-    authorize(ROLES.CAPTAIN, ROLES.OFFICE),
+    authorize(ROLES.CAPTAIN, ROLES.OFFICE, ROLES.CUSTOMER),
     validate(uploadDocumentSchema),
     uploadDocument,
 );
@@ -27,7 +27,7 @@ router.post(
 router.get(
     "/captain/verification/status",
     authenticate,
-    authorize(ROLES.CAPTAIN, ROLES.OFFICE),
+    authorize(ROLES.CAPTAIN, ROLES.OFFICE, ROLES.CUSTOMER),
     getStatus,
 );
 

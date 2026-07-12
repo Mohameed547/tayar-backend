@@ -3,11 +3,12 @@ import ApiResponse from "../../../shared/utils/ApiResponse.js";
 
 export const getUsers = async (req, res, next) => {
   try {
-    const { search, page, limit } = req.query;
+    const { search, page, limit, accountStatus } = req.query;
     const result = await adminUsersService.getUsers({
       search,
       page,
       limit,
+      accountStatus,
     });
     return res.status(200).json(ApiResponse.success(result));
   } catch (err) {
